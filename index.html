@@ -228,6 +228,8 @@ table.rechtab td select:focus,table.rechtab td input:focus{outline:2px solid var
 table.rechtab td.num.calc{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
 table.rechtab td.betrag{color:var(--green-dk)}
 table.rechtab td.unit{color:var(--stone);font-size:13.5px;white-space:nowrap}
+table.rechtab td.preis input.beleg-netto{font-weight:500}
+table.rechtab .hinweis{font-weight:500;font-size:12px;color:var(--stone);white-space:nowrap}
 .colpos{width:34%}.colbed{width:110px}.colmng{width:84px}
 .colprice{width:100px}.colsum{width:110px}.colunit{width:56px}.coldel{width:30px}
 button.del{font:600 16px Barlow;line-height:1;color:var(--stone);background:none;
@@ -2688,21 +2690,49 @@ function rRefreshSelects(){
   });
   rCalcAll();
 }
+function rBelegProzent(text){
+  var m = /([\d.,]+)\s*%/.exec(String(text||''));
+  if(!m) return 0;
+  return parseFloat(m[1].replace(',', '.')) || 0;
+}
 function rCalcRow(tr){
   var it = findR(tr.querySelector('.pos').value),
       bedSel = tr.querySelector('.bed'),
-      mng = parseFloat(tr.querySelector('.mng').value),
+      mngInput = tr.querySelector('.mng'),
+      mng = parseFloat(mngInput.value),
       unit = tr.querySelector('.unit'),
       preis = tr.querySelector('.preis'),
       betrag = tr.querySelector('.betrag');
   tr.classList.toggle('leerzeile', !it);
-  if(!it){ unit.textContent=''; preis.textContent=''; betrag.textContent=''; return 0; }
+  if(!it){
+    unit.textContent=''; preis.textContent=''; betrag.textContent='';
+    mngInput.disabled = false; mngInput.placeholder = '0';
+    return 0;
+  }
   var hatMit = typeof it.m === 'number';
   bedSel.disabled = !hatMit;
   if(!hatMit) bedSel.value = 'o';
   var p = (bedSel.value==='m' && hatMit) ? it.m : it.o;
   unit.textContent = it.e || '';
-  if(typeof p !== 'number'){ preis.textContent = it.o; betrag.textContent=''; return 0; }
+  if(typeof p !== 'number'){
+    // Kein fester Preis (z. B. "nach Beleg + 15%") -- Menge spielt hier keine Rolle,
+    // stattdessen wird der Netto-Betrag laut Beleg eingetragen und der Aufschlag automatisch addiert.
+    mngInput.disabled = true; mngInput.value = ''; mngInput.placeholder = 'entfällt';
+    var prozent = rBelegProzent(p);
+    if(!preis.querySelector('.beleg-netto')){
+      preis.innerHTML = '<input class="beleg-netto" type="number" min="0" step="0.01" placeholder="Netto lt. Beleg (€)">';
+    }
+    var netto = parseFloat(preis.querySelector('.beleg-netto').value);
+    if(isNaN(netto) || netto<=0){
+      betrag.innerHTML = prozent ? '<span class="hinweis">+ '+nfP.format(prozent)+'%</span>' : '';
+      return 0;
+    }
+    var bBeleg = netto * (1 + prozent/100);
+    betrag.innerHTML = nfP.format(bBeleg) + (prozent ? ' <span class="hinweis">(inkl. '+nfP.format(prozent)+'%)</span>' : '');
+    return bBeleg;
+  }
+  mngInput.disabled = false;
+  if(mngInput.placeholder === 'entfällt') mngInput.placeholder = '0';
   preis.textContent = nfP.format(p);
   if(isNaN(mng) || mng<=0){ betrag.textContent=''; return 0; }
   var b = mng*p;
