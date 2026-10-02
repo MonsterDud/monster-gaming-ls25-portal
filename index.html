@@ -1440,6 +1440,18 @@ function enterZumKlicken(eingabeId, knopfId){
 /* ================= MEIN KONTO ================= */
 var AKTIVER_SPIELER = { name:'', passwort:'' };
 var MEINE_SIGNATUR = '';
+var PF_POLL_INTERVAL = null;
+var PF_POLL_MS = 30000;
+function pfPollingStarten(){
+  if(PF_POLL_INTERVAL) clearInterval(PF_POLL_INTERVAL);
+  PF_POLL_INTERVAL = setInterval(function(){
+    if(!AKTIVER_SPIELER.name) return;
+    pfPosteingangLaden();
+  }, PF_POLL_MS);
+}
+function pfPollingStoppen(){
+  if(PF_POLL_INTERVAL){ clearInterval(PF_POLL_INTERVAL); PF_POLL_INTERVAL = null; }
+}
 function meineSignaturLaden(){
   if(scriptFehlt() || !AKTIVER_SPIELER.name) return;
   post({ aktion:'meine_daten', name:AKTIVER_SPIELER.name, passwort:AKTIVER_SPIELER.passwort }).then(function(res){
@@ -1464,8 +1476,10 @@ function kontoAnzeigen(){
   FIRMEN_VERWALTUNG.laden();
   cornerstoneStatusLaden();
   pfPosteingangLaden();
+  pfPollingStarten();
 }
 function kontoAbmelden(){
+  pfPollingStoppen();
   AKTIVER_SPIELER = { name:'', passwort:'' };
   localDel('mg_name');
   document.getElementById('konto-eingeloggt').style.display = 'none';
