@@ -684,7 +684,7 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
       <div class="totals">
         <table>
           <tr><td>Zwischensumme</td><td id="hf-fr-sub">0</td></tr>
-          <tr><td>Zuschlag <input id="hf-fr-zpc" type="number" value="0" min="0" step="1" aria-label="Zuschlag in Prozent"> %</td><td id="hf-fr-zbet">0</td></tr>
+          <tr><td>Mehrwertsteuer <input id="hf-fr-zpc" type="number" value="0" min="0" step="1" aria-label="Mehrwertsteuer in Prozent"> %</td><td id="hf-fr-zbet">0</td></tr>
           <tr><td>Rabatt <input id="hf-fr-rab" type="number" value="0" min="0" step="1" aria-label="Rabatt in Prozent"> %</td><td id="hf-fr-rbet">0</td></tr>
           <tr class="grand"><td>Gesamt</td><td id="hf-fr-ges">0</td></tr>
         </table>
@@ -935,7 +935,7 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
       <div class="totals">
         <table>
           <tr><td>Zwischensumme</td><td id="r-sub">0</td></tr>
-          <tr><td>Zuschlag <input id="r-zpc" type="number" value="0" min="0" step="1" aria-label="Zuschlag in Prozent"> %</td><td id="r-zbet">0</td></tr>
+          <tr><td>Mehrwertsteuer <input id="r-zpc" type="number" value="0" min="0" step="1" aria-label="Mehrwertsteuer in Prozent"> %</td><td id="r-zbet">0</td></tr>
           <tr><td>Rabatt <input id="r-rab" type="number" value="0" min="0" step="1" aria-label="Rabatt in Prozent"> %</td><td id="r-rbet">0</td></tr>
           <tr class="grand"><td>Gesamt</td><td id="r-ges">0</td></tr>
         </table>
@@ -1080,7 +1080,7 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
         <div class="totals">
           <table>
             <tr><td>Zwischensumme</td><td id="fm-fr-sub">0</td></tr>
-            <tr><td>Zuschlag <input id="fm-fr-zpc" type="number" value="0" min="0" step="1" aria-label="Zuschlag in Prozent"> %</td><td id="fm-fr-zbet">0</td></tr>
+            <tr><td>Mehrwertsteuer <input id="fm-fr-zpc" type="number" value="0" min="0" step="1" aria-label="Mehrwertsteuer in Prozent"> %</td><td id="fm-fr-zbet">0</td></tr>
             <tr><td>Rabatt <input id="fm-fr-rab" type="number" value="0" min="0" step="1" aria-label="Rabatt in Prozent"> %</td><td id="fm-fr-rbet">0</td></tr>
             <tr class="grand"><td>Gesamt</td><td id="fm-fr-ges">0</td></tr>
           </table>
@@ -2017,7 +2017,7 @@ function erstelleBetriebsverwaltung(cfg){
     zeilen.push('');
     zeilen.push('Zwischensumme: '+document.getElementById(cfg.frSubId).textContent+' €');
     var z = document.getElementById(cfg.frZpcId).value;
-    if(Number(z)) zeilen.push('Zuschlag ('+z+'%): '+document.getElementById(cfg.frZbetId).textContent+' €');
+    if(Number(z)) zeilen.push('Mehrwertsteuer ('+z+'%): '+document.getElementById(cfg.frZbetId).textContent+' €');
     var r = document.getElementById(cfg.frRabId).value;
     if(Number(r)) zeilen.push('Rabatt ('+r+'%): '+document.getElementById(cfg.frRbetId).textContent+' €');
     zeilen.push('Gesamt: '+document.getElementById(cfg.frGesId).textContent+' €');
