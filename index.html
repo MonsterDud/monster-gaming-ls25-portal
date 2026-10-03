@@ -991,6 +991,8 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
         <div class="fld wide"><label for="ze-geraet">Ger&auml;t / Fahrzeug (optional)</label>
           <select id="ze-geraet"><option value="">&ndash; Ger&auml;t w&auml;hlen &ndash;</option></select></div>
       </div>
+      <p class="lead" style="margin:14px 0 6px">Helfer, die nebenbei im Autodrive mitlaufen (optional, bis zu 5):</p>
+      <div class="meta" id="ze-helfer-zeilen"></div>
       <div class="tools">
         <button class="act" id="ze-ein-btn" type="button">Einstempeln</button>
         <button class="act ghost" id="ze-aus-btn" type="button" style="display:none">Ausstempeln</button>
@@ -2294,6 +2296,7 @@ function zeKarteHtml(a, mitSpieler, darfLoeschen){
       '<div><dt>Ende</dt><dd>'+(a.ende?escHtml(a.ende):'&ndash;')+'</dd></div>'+
       '<div><dt>Dauer</dt><dd>'+(a.dauerMin!==''?escHtml(String(a.dauerMin))+' Min.':'&ndash;')+'</dd></div>'+
     '</dl>'+
+    (a.helfer?'<div class="beschreibung"><b>Helfer (Autodrive):</b> '+escHtml(a.helfer)+'</div>':'')+
     (darfLoeschen?'<div class="tools"><button class="act ghost ze-loeschen" type="button">L&ouml;schen</button></div>':'')+
   '</div>';
 }
@@ -2301,6 +2304,27 @@ function zeStatusAktualisieren(eingestempelt){
   document.getElementById('ze-ein-btn').style.display = eingestempelt ? 'none' : '';
   document.getElementById('ze-aus-btn').style.display = eingestempelt ? '' : 'none';
   document.getElementById('ze-geraet').disabled = eingestempelt;
+  for(var i = 1; i <= 5; i++){
+    var nameFeld = document.getElementById('ze-helfer-name-'+i);
+    var geraetFeld = document.getElementById('ze-helfer-geraet-'+i);
+    if(nameFeld) nameFeld.disabled = eingestempelt;
+    if(geraetFeld) geraetFeld.disabled = eingestempelt;
+  }
+}
+var ZE_GERAETE_OPTIONEN_HTML = '<option value="">– Gerät wählen –</option>';
+function zeGeraeteOptionenHtml(){
+  return ZE_GERAETE_OPTIONEN_HTML + '<option value="__frei__">Andere / manuell eingeben …</option>';
+}
+function zeHelferZeilenAufbauen(){
+  var el = document.getElementById('ze-helfer-zeilen');
+  var html = '';
+  for(var i = 1; i <= 5; i++){
+    html += '<div class="fld"><label for="ze-helfer-name-'+i+'">Helfer '+i+'</label>'+
+      '<input id="ze-helfer-name-'+i+'" placeholder="Name"></div>'+
+      '<div class="fld"><label for="ze-helfer-geraet-'+i+'">Fahrzeug/Ger&auml;t</label>'+
+      '<select id="ze-helfer-geraet-'+i+'">'+zeGeraeteOptionenHtml()+'</select></div>';
+  }
+  el.innerHTML = html;
 }
 function zeGeraeteLaden(){
   if(ZE_GERAETE_GELADEN || scriptFehlt()) return;
@@ -2312,26 +2336,47 @@ function zeGeraeteLaden(){
     (res.daten || []).forEach(function(p){
       if(p.name && namen.indexOf(p.name) === -1) namen.push(p.name);
     });
-    var sel = document.getElementById('ze-geraet');
-    var aktuell = sel.value;
-    sel.innerHTML = '<option value="">– Gerät wählen –</option>' +
-      namen.map(function(n){ return '<option value="'+escHtml(n)+'">'+escHtml(n)+'</option>'; }).join('') +
-      '<option value="__frei__">Andere / manuell eingeben …</option>';
-    sel.value = aktuell;
+    ZE_GERAETE_OPTIONEN_HTML = '<option value="">– Gerät wählen –</option>' +
+      namen.map(function(n){ return '<option value="'+escHtml(n)+'">'+escHtml(n)+'</option>'; }).join('');
+    ['ze-geraet','ze-helfer-geraet-1','ze-helfer-geraet-2','ze-helfer-geraet-3','ze-helfer-geraet-4','ze-helfer-geraet-5'].forEach(function(id){
+      var sel = document.getElementById(id);
+      if(!sel) return;
+      var aktuell = sel.value;
+      sel.innerHTML = zeGeraeteOptionenHtml();
+      sel.value = aktuell;
+    });
   }).catch(function(){});
 }
-function zeGeraetWert(){
-  var sel = document.getElementById('ze-geraet');
+function zeGeraetWertVon(sel){
   if(sel.value === '__frei__'){
     return prompt('Gerät/Fahrzeug eingeben:', '') || '';
   }
   return sel.value;
 }
+function zeGeraetWert(){
+  return zeGeraetWertVon(document.getElementById('ze-geraet'));
+}
+function zeHelferWert(){
+  var teile = [];
+  for(var i = 1; i <= 5; i++){
+    var name = document.getElementById('ze-helfer-name-'+i).value.trim();
+    if(!name) continue;
+    var geraet = zeGeraetWertVon(document.getElementById('ze-helfer-geraet-'+i));
+    teile.push(geraet ? name+' ('+geraet+')' : name);
+  }
+  return teile.join(', ');
+}
+function zeHelferFelderLeeren(){
+  for(var i = 1; i <= 5; i++){
+    document.getElementById('ze-helfer-name-'+i).value = '';
+    document.getElementById('ze-helfer-geraet-'+i).value = '';
+  }
+}
 function zeCsvHerunterladen(liste, mitSpieler, dateiname){
-  var kopf = mitSpieler ? ['Mitarbeiter','Gerät','Start','Ende','Dauer (Min.)'] : ['Gerät','Start','Ende','Dauer (Min.)'];
+  var kopf = mitSpieler ? ['Mitarbeiter','Gerät','Start','Ende','Dauer (Min.)','Helfer (Autodrive)'] : ['Gerät','Start','Ende','Dauer (Min.)','Helfer (Autodrive)'];
   var zeilen = [kopf];
   liste.forEach(function(a){
-    var zeile = mitSpieler ? [a.spieler, a.geraet, a.start, a.ende, a.dauerMin] : [a.geraet, a.start, a.ende, a.dauerMin];
+    var zeile = mitSpieler ? [a.spieler, a.geraet, a.start, a.ende, a.dauerMin, a.helfer] : [a.geraet, a.start, a.ende, a.dauerMin, a.helfer];
     zeilen.push(zeile.map(function(v){ return '"'+String(v||'').replace(/"/g,'""')+'"'; }));
   });
   var csv = '﻿' + zeilen.map(function(z){ return z.join(';'); }).join('\r\n');
@@ -2391,17 +2436,18 @@ function zeTeamLaden(){
 }
 document.getElementById('ze-ein-btn').addEventListener('click', function(){
   var geraet = zeGeraetWert();
+  var helfer = zeHelferWert();
   setStatus('ze-status','Wird gespeichert …');
   post({ aktion:'zeit_einstempeln', name:AKTIVER_SPIELER.name, passwort:AKTIVER_SPIELER.passwort,
-         geraet: geraet }).then(function(res){
-    if(res.ok){ setStatus('ze-status','Eingestempelt.', 'ok'); zeMeineLaden(); }
+         geraet: geraet, helfer: helfer }).then(function(res){
+    if(res.ok){ setStatus('ze-status','Eingestempelt.', 'ok'); zeHelferFelderLeeren(); zeMeineLaden(); }
     else setStatus('ze-status', res.fehler === 'bereits_eingestempelt' ? 'Du bist bereits eingestempelt.' : 'Fehler beim Einstempeln.', 'err');
   }).catch(function(){ setStatus('ze-status','Fehler beim Einstempeln.', 'err'); });
 });
 document.getElementById('ze-aus-btn').addEventListener('click', function(){
   setStatus('ze-status','Wird gespeichert …');
   post({ aktion:'zeit_ausstempeln', name:AKTIVER_SPIELER.name, passwort:AKTIVER_SPIELER.passwort }).then(function(res){
-    if(res.ok){ setStatus('ze-status','Ausgestempelt — Dauer: '+res.dauerMin+' Min.', 'ok'); document.getElementById('ze-geraet').value=''; zeMeineLaden(); }
+    if(res.ok){ setStatus('ze-status','Ausgestempelt — Dauer: '+res.dauerMin+' Min.', 'ok'); document.getElementById('ze-geraet').value=''; zeHelferFelderLeeren(); zeMeineLaden(); }
     else setStatus('ze-status','Fehler beim Ausstempeln.', 'err');
   }).catch(function(){ setStatus('ze-status','Fehler beim Ausstempeln.', 'err'); });
 });
@@ -2621,6 +2667,7 @@ window.addEventListener('DOMContentLoaded', function(){
     document.getElementById('cn-char').value = gemerkt;
     document.getElementById('cm-name').value = gemerkt;
   }
+  zeHelferZeilenAufbauen();
 });
 
 /* ================= HOF-VERZEICHNIS ================= */
