@@ -988,7 +988,7 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
     <div class="karte" style="margin-bottom:18px">
       <div class="meta">
         <div class="fld wide"><label for="ze-geraet">Ger&auml;t / Fahrzeug (optional)</label>
-          <input id="ze-geraet" placeholder="z. B. Radlader 1, Muldenkipper 3"></div>
+          <select id="ze-geraet"><option value="">&ndash; Ger&auml;t w&auml;hlen &ndash;</option></select></div>
       </div>
       <div class="tools">
         <button class="act" id="ze-ein-btn" type="button">Einstempeln</button>
@@ -998,12 +998,16 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
     </div>
 
     <h2 class="sec">Meine Zeiten</h2>
+    <div class="tools" style="margin-bottom:10px">
+      <button class="act ghost" id="ze-meine-csv" type="button">Als CSV herunterladen</button>
+    </div>
     <div id="ze-meine-liste"></div>
 
     <div id="ze-team-box" style="display:none;margin-top:24px">
       <h2 class="sec">Team-&Uuml;bersicht (alle Mitarbeiter)</h2>
       <div class="tools" style="margin-bottom:10px">
         <button class="act ghost" id="ze-team-reload" type="button">Aktualisieren</button>
+        <button class="act ghost" id="ze-team-csv" type="button">Als CSV herunterladen</button>
       </div>
       <div id="ze-team-liste"></div>
     </div>
@@ -2274,7 +2278,10 @@ function csTabsSetzen(zeigen, istMitarbeiter){
 }
 
 /* ---- Zeiterfassung (Cornerstone-Mitarbeiter) ---- */
-function zeKarteHtml(a, mitSpieler){
+var ZE_MEINE_DATEN = [];
+var ZE_TEAM_DATEN = [];
+var ZE_GERAETE_GELADEN = false;
+function zeKarteHtml(a, mitSpieler, darfLoeschen){
   return '<div class="karte" data-id="'+a.id+'">'+
     '<div class="karte-kopf"><span class="anr">'+(mitSpieler?escHtml(a.spieler)+' &mdash; ':'')+escHtml(a.geraet || 'Kein Gerät angegeben')+'</span>'+
     (a.ende?'':'<span class="badge-typ">L&auml;uft</span>')+'</div>'+
@@ -2283,6 +2290,7 @@ function zeKarteHtml(a, mitSpieler){
       '<div><dt>Ende</dt><dd>'+(a.ende?escHtml(a.ende):'&ndash;')+'</dd></div>'+
       '<div><dt>Dauer</dt><dd>'+(a.dauerMin!==''?escHtml(String(a.dauerMin))+' Min.':'&ndash;')+'</dd></div>'+
     '</dl>'+
+    (darfLoeschen?'<div class="tools"><button class="act ghost ze-loeschen" type="button">L&ouml;schen</button></div>':'')+
   '</div>';
 }
 function zeStatusAktualisieren(eingestempelt){
@@ -2290,15 +2298,62 @@ function zeStatusAktualisieren(eingestempelt){
   document.getElementById('ze-aus-btn').style.display = eingestempelt ? '' : 'none';
   document.getElementById('ze-geraet').disabled = eingestempelt;
 }
+function zeGeraeteLaden(){
+  if(ZE_GERAETE_GELADEN || scriptFehlt()) return;
+  get('?aktion=cornerstone_status').then(function(res){
+    if(!res.ok || !res.betriebId) return;
+    return get('?aktion=firmenpreise_alle&betriebId='+encodeURIComponent(res.betriebId));
+  }).then(function(res){
+    if(!res || !res.ok) return;
+    ZE_GERAETE_GELADEN = true;
+    var sel = document.getElementById('ze-geraet');
+    var aktuell = sel.value;
+    sel.innerHTML = '<option value="">– Gerät wählen –</option>' +
+      (res.daten || []).map(function(p){ return '<option value="'+escHtml(p.bezeichnung)+'">'+escHtml(p.bezeichnung)+'</option>'; }).join('') +
+      '<option value="__frei__">Andere / manuell eingeben …</option>';
+    sel.value = aktuell;
+  }).catch(function(){});
+}
+function zeGeraetWert(){
+  var sel = document.getElementById('ze-geraet');
+  if(sel.value === '__frei__'){
+    return prompt('Gerät/Fahrzeug eingeben:', '') || '';
+  }
+  return sel.value;
+}
+function zeCsvHerunterladen(liste, mitSpieler, dateiname){
+  var kopf = mitSpieler ? ['Mitarbeiter','Gerät','Start','Ende','Dauer (Min.)'] : ['Gerät','Start','Ende','Dauer (Min.)'];
+  var zeilen = [kopf];
+  liste.forEach(function(a){
+    var zeile = mitSpieler ? [a.spieler, a.geraet, a.start, a.ende, a.dauerMin] : [a.geraet, a.start, a.ende, a.dauerMin];
+    zeilen.push(zeile.map(function(v){ return '"'+String(v||'').replace(/"/g,'""')+'"'; }));
+  });
+  var csv = '﻿' + zeilen.map(function(z){ return z.join(';'); }).join('\r\n');
+  var blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = dateiname; document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
 function zeMeineLaden(){
   if(scriptFehlt() || !AKTIVER_SPIELER.name) return;
+  zeGeraeteLaden();
   get('?aktion=zeit_meine&name='+encodeURIComponent(AKTIVER_SPIELER.name)+'&passwort='+encodeURIComponent(AKTIVER_SPIELER.passwort)).then(function(res){
     if(!res.ok) return;
     zeStatusAktualisieren(res.eingestempelt);
-    var liste = (res.daten || []).slice().reverse();
+    ZE_MEINE_DATEN = (res.daten || []).slice().reverse();
     var el = document.getElementById('ze-meine-liste');
-    el.innerHTML = liste.length ? liste.map(function(a){ return zeKarteHtml(a, false); }).join('') :
+    el.innerHTML = ZE_MEINE_DATEN.length ? ZE_MEINE_DATEN.map(function(a){ return zeKarteHtml(a, false, true); }).join('') :
       '<p class="leer">Noch keine Zeiten erfasst.</p>';
+    el.querySelectorAll('.karte').forEach(function(karte){
+      var btn = karte.querySelector('.ze-loeschen');
+      if(!btn) return;
+      btn.addEventListener('click', function(){
+        if(!confirm('Diesen Zeiteintrag wirklich löschen?')) return;
+        post({ aktion:'zeit_loeschen', name:AKTIVER_SPIELER.name, passwort:AKTIVER_SPIELER.passwort, id: karte.getAttribute('data-id') })
+          .then(function(r){ if(r.ok) karte.remove(); });
+      });
+    });
   }).catch(function(){});
 }
 function zeTeamSichtbarkeitPruefen(){
@@ -2313,27 +2368,26 @@ function zeTeamLaden(){
   if(scriptFehlt() || !AKTIVER_SPIELER.name) return;
   get('?aktion=zeit_alle&name='+encodeURIComponent(AKTIVER_SPIELER.name)+'&passwort='+encodeURIComponent(AKTIVER_SPIELER.passwort)).then(function(res){
     if(!res.ok) return;
-    var liste = (res.daten || []).slice().reverse();
+    ZE_TEAM_DATEN = (res.daten || []).slice().reverse();
     var el = document.getElementById('ze-team-liste');
-    el.innerHTML = liste.length ? liste.map(function(a){ return zeKarteHtml(a, true); }).join('') :
+    el.innerHTML = ZE_TEAM_DATEN.length ? ZE_TEAM_DATEN.map(function(a){ return zeKarteHtml(a, true, true); }).join('') :
       '<p class="leer">Noch keine Zeiten erfasst.</p>';
     el.querySelectorAll('.karte').forEach(function(karte){
-      var btn = document.createElement('button');
-      btn.className = 'act ghost'; btn.type = 'button'; btn.textContent = 'Löschen';
-      btn.style.marginTop = '8px';
+      var btn = karte.querySelector('.ze-loeschen');
+      if(!btn) return;
       btn.addEventListener('click', function(){
         if(!confirm('Diesen Zeiteintrag wirklich löschen?')) return;
         post({ aktion:'zeit_loeschen', name:AKTIVER_SPIELER.name, passwort:AKTIVER_SPIELER.passwort, id: karte.getAttribute('data-id') })
           .then(function(r){ if(r.ok) karte.remove(); });
       });
-      karte.appendChild(btn);
     });
   }).catch(function(){});
 }
 document.getElementById('ze-ein-btn').addEventListener('click', function(){
+  var geraet = zeGeraetWert();
   setStatus('ze-status','Wird gespeichert …');
   post({ aktion:'zeit_einstempeln', name:AKTIVER_SPIELER.name, passwort:AKTIVER_SPIELER.passwort,
-         geraet: document.getElementById('ze-geraet').value.trim() }).then(function(res){
+         geraet: geraet }).then(function(res){
     if(res.ok){ setStatus('ze-status','Eingestempelt.', 'ok'); zeMeineLaden(); }
     else setStatus('ze-status', res.fehler === 'bereits_eingestempelt' ? 'Du bist bereits eingestempelt.' : 'Fehler beim Einstempeln.', 'err');
   }).catch(function(){ setStatus('ze-status','Fehler beim Einstempeln.', 'err'); });
@@ -2346,6 +2400,12 @@ document.getElementById('ze-aus-btn').addEventListener('click', function(){
   }).catch(function(){ setStatus('ze-status','Fehler beim Ausstempeln.', 'err'); });
 });
 document.getElementById('ze-team-reload').addEventListener('click', zeTeamLaden);
+document.getElementById('ze-meine-csv').addEventListener('click', function(){
+  zeCsvHerunterladen(ZE_MEINE_DATEN, false, 'meine-zeiten.csv');
+});
+document.getElementById('ze-team-csv').addEventListener('click', function(){
+  zeCsvHerunterladen(ZE_TEAM_DATEN, true, 'cornerstone-zeiterfassung.csv');
+});
 
 document.getElementById('cs-uebernehmen-btn').addEventListener('click', function(){
   if(!AKTIVER_SPIELER.name){ setStatus('cs-uebernehmen-status','Bitte zuerst unter „Mein Konto“ anmelden.', 'err'); return; }
