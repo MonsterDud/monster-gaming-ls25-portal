@@ -3434,13 +3434,24 @@ function pfSanitizeHtml(html){
   var ERLAUBTE_TAGS = { B:1, STRONG:1, I:1, EM:1, U:1, BR:1, DIV:1, P:1, SPAN:1, FONT:1 };
   var ERLAUBTE_STYLES = ['font-weight','font-style','text-decoration','font-family','color'];
   function saubern(node){
-    Array.prototype.slice.call(node.childNodes).forEach(function(kind){
+    // Läuft per firstChild/nextSibling über die Kinder statt über ein einmal
+    // erstelltes Array (Snapshot) — so bleibt der "nächstes Geschwister"-Zeiger
+    // auch dann gültig, wenn der aktuelle Knoten entfernt/aufgelöst wird.
+    // (Vorher: forEach über ein Array-Snapshot + rekursiver Neustart bei jedem
+    // nicht erlaubten Tag -> Geschwister wurden doppelt verarbeitet und ein
+    // bereits entferntes Element wurde ein zweites Mal entfernt -> Absturz.)
+    var kind = node.firstChild;
+    while(kind){
       if(kind.nodeType === 1){
         if(!ERLAUBTE_TAGS[kind.tagName]){
+          var ersterEingefuegter = kind.firstChild;
           while(kind.firstChild) node.insertBefore(kind.firstChild, kind);
+          var naechstesGeschwister = kind.nextSibling;
           node.removeChild(kind);
-          saubern(node);
-          return;
+          // Mit dem aufgelösten Inhalt weitermachen (der muss selbst noch
+          // geprüft werden), sonst mit dem, was nach dem entfernten Tag kam.
+          kind = ersterEingefuegter || naechstesGeschwister;
+          continue;
         }
         Array.prototype.slice.call(kind.attributes).forEach(function(attr){
           var name = attr.name.toLowerCase();
@@ -3460,10 +3471,15 @@ function pfSanitizeHtml(html){
           }
         });
         saubern(kind);
+        kind = kind.nextSibling;
       } else if(kind.nodeType !== 3){
+        var naechstes = kind.nextSibling;
         node.removeChild(kind);
+        kind = naechstes;
+      } else {
+        kind = kind.nextSibling;
       }
-    });
+    }
   }
   var tmp = document.createElement('div');
   tmp.innerHTML = html || '';
