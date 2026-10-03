@@ -946,12 +946,15 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
         <div class="brief-empfaenger">
           <div class="brief-empf-label">Empf&auml;nger</div>
           <div class="brief-empf-name" id="r-empf-kunde">&mdash;</div>
+          <div class="brief-empf-baustelle" id="r-empf-adresse"></div>
           <div class="brief-empf-baustelle" id="r-empf-baustelle"></div>
         </div>
       </div>
       <h2 class="sec" style="margin-top:0" id="r-titel">Rechnung erstellen</h2>
       <div class="meta">
         <div class="fld"><label for="r-k">Kunde</label><input id="r-k" placeholder="Name des Kunden"></div>
+        <div class="fld"><label for="r-str">Stra&szlig;e</label><input id="r-str" placeholder="Stra&szlig;e, Hausnr."></div>
+        <div class="fld"><label for="r-ort">Ort</label><input id="r-ort" placeholder="PLZ, Ort"></div>
         <div class="fld"><label for="r-nr" id="r-nr-label">Rechnungsnummer</label><input id="r-nr" placeholder="z. B. 2026-014"></div>
         <div class="fld"><label for="r-dt">Datum</label><input id="r-dt" placeholder="TT.MM.JJJJ"></div>
         <div class="fld"><label for="r-bs">Baustelle</label><input id="r-bs" placeholder="Ort / Feld-Nr."></div>
@@ -3237,15 +3240,20 @@ document.getElementById('r-print').addEventListener('click', function(){
 });
 function rEmpfAktualisieren(){
   var kd = document.getElementById('r-k').value.trim(),
+      str = document.getElementById('r-str').value.trim(),
+      ort = document.getElementById('r-ort').value.trim(),
       bs = document.getElementById('r-bs').value.trim();
   document.getElementById('r-empf-kunde').textContent = kd || '—';
+  document.getElementById('r-empf-adresse').innerHTML = (str ? escHtml(str) : '') + (str && ort ? '<br>' : '') + (ort ? escHtml(ort) : '');
   document.getElementById('r-empf-baustelle').textContent = bs ? 'Baustelle: ' + bs : '';
 }
 document.getElementById('r-k').addEventListener('input', rEmpfAktualisieren);
+document.getElementById('r-str').addEventListener('input', rEmpfAktualisieren);
+document.getElementById('r-ort').addEventListener('input', rEmpfAktualisieren);
 document.getElementById('r-bs').addEventListener('input', rEmpfAktualisieren);
 document.getElementById('r-clear').addEventListener('click', function(){
   rRowsEl.innerHTML = ''; for(var i=0;i<8;i++) rAddRow();
-  ['r-k','r-nr','r-dt','r-bs','r-gueltig'].forEach(function(id){ document.getElementById(id).value=''; });
+  ['r-k','r-str','r-ort','r-nr','r-dt','r-bs','r-gueltig'].forEach(function(id){ document.getElementById(id).value=''; });
   document.getElementById('r-zpc').value = 0; document.getElementById('r-rab').value = 0;
   document.getElementById('r-typ').value = 'rechnung';
   rTypAktualisieren();
