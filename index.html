@@ -295,7 +295,7 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
   body *{visibility:hidden}
   .druckbereich,.druckbereich *{visibility:visible}
   .druckbereich{position:absolute;left:0;top:0;width:100%;background:#fff}
-  button.del,.tools{display:none}
+  button.del,.tools,#r-entwurf-status{display:none}
   tr.leerzeile{display:none}
   table.rechtab td select,table.rechtab td input,.totals input{border:0;background:none;padding:0;
     -webkit-appearance:none;appearance:none}
@@ -982,6 +982,15 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
         <button class="act ghost" id="r-clear" type="button">Alles leeren</button>
       </div>
 
+      <div class="tools" style="margin-top:10px">
+        <div class="fld wide"><label for="r-entwurf-liste">Gespeicherter Entwurf</label>
+          <select id="r-entwurf-liste"><option value="">&ndash; neuer Entwurf &ndash;</option></select></div>
+        <button class="act ghost" id="r-entwurf-laden" type="button">Laden</button>
+        <button class="act" id="r-entwurf-speichern" type="button">Entwurf speichern</button>
+        <button class="act ghost" id="r-entwurf-loeschen" type="button">Entwurf l&ouml;schen</button>
+      </div>
+      <div class="status" id="r-entwurf-status" role="status" aria-live="polite"></div>
+
       <div class="totals">
         <table>
           <tr><td>Zwischensumme</td><td id="r-sub">0</td></tr>
@@ -1015,7 +1024,9 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
   <!-- Zeiterfassung (nur Cornerstone-Mitarbeiter) -->
   <section class="panel" id="c-zeit">
     <p class="lead">Erfasse deine Arbeitszeit bei Cornerstone &mdash; w&auml;hle optional das
-    Ger&auml;t/Fahrzeug, das du gerade nutzt, und stemple dich ein und aus.</p>
+    Ger&auml;t/Fahrzeug, das du gerade nutzt, und stemple dich ein und aus. Du kannst dabei
+    bis zu 5 Helfer mit einstempeln &mdash; jeder bekommt einen eigenen Zeiteintrag, und beim
+    Ausstempeln werden alle gemeinsam wieder beendet.</p>
 
     <div class="karte" style="margin-bottom:18px">
       <div class="meta">
@@ -2478,6 +2489,7 @@ function zeKarteHtml(a, mitSpieler, darfLoeschen){
       '<div><dt>Ende</dt><dd>'+(a.ende?escHtml(a.ende):'&ndash;')+'</dd></div>'+
       '<div><dt>Dauer</dt><dd>'+(a.dauerMin!==''?escHtml(String(a.dauerMin))+' Min.':'&ndash;')+'</dd></div>'+
     '</dl>'+
+    (a.von?'<div class="beschreibung"><b>Eingestempelt von:</b> '+escHtml(a.von)+'</div>':'')+
     (a.helfer?'<div class="beschreibung"><b>Helfer (Autodrive):</b> '+escHtml(a.helfer)+'</div>':'')+
     (darfLoeschen?'<div class="tools"><button class="act ghost ze-loeschen" type="button">L&ouml;schen</button></div>':'')+
   '</div>';
@@ -2538,15 +2550,15 @@ function zeGeraetWertVon(sel){
 function zeGeraetWert(){
   return zeGeraetWertVon(document.getElementById('ze-geraet'));
 }
-function zeHelferWert(){
-  var teile = [];
+function zeHelferListe(){
+  var liste = [];
   for(var i = 1; i <= 5; i++){
     var name = document.getElementById('ze-helfer-name-'+i).value.trim();
     if(!name) continue;
     var geraet = zeGeraetWertVon(document.getElementById('ze-helfer-geraet-'+i));
-    teile.push(geraet ? name+' ('+geraet+')' : name);
+    liste.push({ name:name, geraet:geraet || '' });
   }
-  return teile.join(', ');
+  return liste;
 }
 function zeHelferFelderLeeren(){
   for(var i = 1; i <= 5; i++){
@@ -2555,10 +2567,10 @@ function zeHelferFelderLeeren(){
   }
 }
 function zeCsvHerunterladen(liste, mitSpieler, dateiname){
-  var kopf = mitSpieler ? ['Mitarbeiter','Gerät','Start','Ende','Dauer (Min.)','Helfer (Autodrive)'] : ['Gerät','Start','Ende','Dauer (Min.)','Helfer (Autodrive)'];
+  var kopf = mitSpieler ? ['Mitarbeiter','Gerät','Start','Ende','Dauer (Min.)','Eingestempelt von'] : ['Gerät','Start','Ende','Dauer (Min.)','Eingestempelt von'];
   var zeilen = [kopf];
   liste.forEach(function(a){
-    var zeile = mitSpieler ? [a.spieler, a.geraet, a.start, a.ende, a.dauerMin, a.helfer] : [a.geraet, a.start, a.ende, a.dauerMin, a.helfer];
+    var zeile = mitSpieler ? [a.spieler, a.geraet, a.start, a.ende, a.dauerMin, a.von] : [a.geraet, a.start, a.ende, a.dauerMin, a.von];
     zeilen.push(zeile.map(function(v){ return '"'+String(v||'').replace(/"/g,'""')+'"'; }));
   });
   var csv = '﻿' + zeilen.map(function(z){ return z.join(';'); }).join('\r\n');
@@ -2618,18 +2630,27 @@ function zeTeamLaden(){
 }
 document.getElementById('ze-ein-btn').addEventListener('click', function(){
   var geraet = zeGeraetWert();
-  var helfer = zeHelferWert();
+  var helfer = zeHelferListe();
   setStatus('ze-status','Wird gespeichert …');
   post({ aktion:'zeit_einstempeln', name:AKTIVER_SPIELER.name, passwort:AKTIVER_SPIELER.passwort,
          geraet: geraet, helfer: helfer }).then(function(res){
-    if(res.ok){ setStatus('ze-status','Eingestempelt.', 'ok'); zeHelferFelderLeeren(); zeMeineLaden(); }
+    if(res.ok){
+      var txt = 'Eingestempelt' + (helfer.length ? ' (du + '+(helfer.length-(res.uebersprungen?res.uebersprungen.length:0))+' Helfer)' : '') + '.';
+      if(res.uebersprungen && res.uebersprungen.length) txt += ' Übersprungen (schon eingestempelt): '+res.uebersprungen.join(', ')+'.';
+      setStatus('ze-status', txt, 'ok'); zeHelferFelderLeeren(); zeMeineLaden();
+      if(document.getElementById('ze-team-box').style.display !== 'none') zeTeamLaden();
+    }
     else setStatus('ze-status', res.fehler === 'bereits_eingestempelt' ? 'Du bist bereits eingestempelt.' : 'Fehler beim Einstempeln.', 'err');
   }).catch(function(){ setStatus('ze-status','Fehler beim Einstempeln.', 'err'); });
 });
 document.getElementById('ze-aus-btn').addEventListener('click', function(){
   setStatus('ze-status','Wird gespeichert …');
   post({ aktion:'zeit_ausstempeln', name:AKTIVER_SPIELER.name, passwort:AKTIVER_SPIELER.passwort }).then(function(res){
-    if(res.ok){ setStatus('ze-status','Ausgestempelt — Dauer: '+res.dauerMin+' Min.', 'ok'); document.getElementById('ze-geraet').value=''; zeHelferFelderLeeren(); zeMeineLaden(); }
+    if(res.ok){
+      var txt = 'Ausgestempelt — Dauer: '+res.dauerMin+' Min.' + (res.mitBeendet ? ' (+ '+res.mitBeendet+' Helfer mit ausgestempelt)' : '');
+      setStatus('ze-status', txt, 'ok'); document.getElementById('ze-geraet').value=''; zeHelferFelderLeeren(); zeMeineLaden();
+      if(document.getElementById('ze-team-box').style.display !== 'none') zeTeamLaden();
+    }
     else setStatus('ze-status','Fehler beim Ausstempeln.', 'err');
   }).catch(function(){ setStatus('ze-status','Fehler beim Ausstempeln.', 'err'); });
 });
@@ -3423,6 +3444,107 @@ rRowsEl.addEventListener('click', function(e){
 for(var riz=0; riz<8; riz++) rAddRow();
 rCalcAll();
 
+/* ---- Rechnungs-/Angebots-Entwürfe speichern & fortsetzen ---- */
+var R_ENTWURF_ID = '';
+function rEntwurfListeLaden(){
+  if(scriptFehlt()) return;
+  get('?aktion=entwurf_liste&'+caAuthQuery()).then(function(res){
+    var sel = document.getElementById('r-entwurf-liste');
+    var aktuell = sel.value;
+    var h = '<option value="">– neuer Entwurf –</option>';
+    if(res && res.ok){
+      (res.daten||[]).forEach(function(e){
+        h += '<option value="'+e.id+'">'+escHtml(e.titel)+' ('+(e.typ==='angebot'?'Angebot':'Rechnung')+', '+escHtml(e.aktualisiert)+')</option>';
+      });
+    }
+    sel.innerHTML = h;
+    sel.value = aktuell;
+  }).catch(function(){});
+}
+function rEntwurfSammeln(){
+  var zeilen = [];
+  [].forEach.call(rRowsEl.children, function(tr){
+    var pos = tr.querySelector('.pos').value;
+    if(!pos) return;
+    var belegNetto = tr.querySelector('.beleg-netto');
+    zeilen.push({ pos:pos, bed:tr.querySelector('.bed').value, mng:tr.querySelector('.mng').value,
+      belegNetto: belegNetto ? belegNetto.value : '' });
+  });
+  return {
+    typ: document.getElementById('r-typ').value,
+    k: document.getElementById('r-k').value, str: document.getElementById('r-str').value,
+    ort: document.getElementById('r-ort').value, nr: document.getElementById('r-nr').value,
+    dt: document.getElementById('r-dt').value, bs: document.getElementById('r-bs').value,
+    gueltig: document.getElementById('r-gueltig').value,
+    zpc: document.getElementById('r-zpc').value, rab: document.getElementById('r-rab').value,
+    zeilen: zeilen
+  };
+}
+function rEntwurfAnwenden(daten){
+  document.getElementById('r-typ').value = daten.typ || 'rechnung';
+  document.getElementById('r-k').value = daten.k || '';
+  document.getElementById('r-str').value = daten.str || '';
+  document.getElementById('r-ort').value = daten.ort || '';
+  document.getElementById('r-nr').value = daten.nr || '';
+  document.getElementById('r-dt').value = daten.dt || '';
+  document.getElementById('r-bs').value = daten.bs || '';
+  document.getElementById('r-gueltig').value = daten.gueltig || '';
+  document.getElementById('r-zpc').value = daten.zpc || 0;
+  document.getElementById('r-rab').value = daten.rab || 0;
+  rRowsEl.innerHTML = '';
+  (daten.zeilen || []).forEach(function(z){
+    var tr = rAddRow();
+    tr.querySelector('.pos').value = z.pos;
+    rCalcRow(tr); // baut ggf. das Beleg-Netto-Feld auf, bevor wir dessen Wert setzen
+    tr.querySelector('.bed').value = z.bed || 'o';
+    tr.querySelector('.mng').value = z.mng || '';
+    var belegNetto = tr.querySelector('.beleg-netto');
+    if(belegNetto) belegNetto.value = z.belegNetto || '';
+  });
+  while(rRowsEl.children.length < 8) rAddRow();
+  rTypAktualisieren();
+  rEmpfAktualisieren();
+  var v = document.getElementById('r-dt').value.trim();
+  document.getElementById('r-ortdat').textContent = 'Garding' + (v ? ', '+v : '');
+  rCalcAll();
+}
+document.getElementById('r-entwurf-speichern').addEventListener('click', function(){
+  setStatus('r-entwurf-status','Wird gespeichert …');
+  post(Object.assign({ aktion:'entwurf_speichern', id:R_ENTWURF_ID,
+    titel: document.getElementById('r-k').value.trim() || '(ohne Namen)',
+    typ: document.getElementById('r-typ').value, daten: rEntwurfSammeln() }, caAuthFelder())).then(function(res){
+    if(res.ok){
+      R_ENTWURF_ID = res.id;
+      setStatus('r-entwurf-status','Entwurf gespeichert — kann jederzeit fortgesetzt werden.', 'ok');
+      rEntwurfListeLaden();
+    } else setStatus('r-entwurf-status','Fehler beim Speichern des Entwurfs.', 'err');
+  }).catch(function(){ setStatus('r-entwurf-status','Fehler beim Speichern des Entwurfs.', 'err'); });
+});
+document.getElementById('r-entwurf-laden').addEventListener('click', function(){
+  var id = document.getElementById('r-entwurf-liste').value;
+  if(!id){ R_ENTWURF_ID = ''; document.getElementById('r-clear').click(); setStatus('r-entwurf-status','', ''); return; }
+  setStatus('r-entwurf-status','Wird geladen …');
+  get('?aktion=entwurf_laden&id='+encodeURIComponent(id)+'&'+caAuthQuery()).then(function(res){
+    if(res.ok){
+      R_ENTWURF_ID = id;
+      rEntwurfAnwenden(res.entwurf.daten);
+      setStatus('r-entwurf-status','Entwurf geladen.', 'ok');
+    } else setStatus('r-entwurf-status','Entwurf konnte nicht geladen werden.', 'err');
+  }).catch(function(){ setStatus('r-entwurf-status','Fehler beim Laden.', 'err'); });
+});
+document.getElementById('r-entwurf-loeschen').addEventListener('click', function(){
+  var id = document.getElementById('r-entwurf-liste').value;
+  if(!id) return;
+  if(!confirm('Diesen Entwurf wirklich löschen?')) return;
+  post(Object.assign({ aktion:'entwurf_loeschen', id:id }, caAuthFelder())).then(function(res){
+    if(res.ok){
+      if(R_ENTWURF_ID === id) R_ENTWURF_ID = '';
+      setStatus('r-entwurf-status','Entwurf gelöscht.', 'ok');
+      rEntwurfListeLaden();
+    }
+  });
+});
+
 /* ---- Zugangscode-Gate fuer Rechnung (nutzt denselben Code wie Bauleitung) ---- */
 enterZumKlicken('cr-code', 'cr-btn');
 document.getElementById('cr-btn').addEventListener('click', function(){
@@ -3436,6 +3558,7 @@ document.getElementById('cr-btn').addEventListener('click', function(){
     CA_ANGEMELDET = true;
     document.getElementById('cr-gate').style.display = 'none';
     document.getElementById('cr-bereich').style.display = 'block';
+    rEntwurfListeLaden();
   }).catch(function(){ setStatus('cr-status','Fehler bei der Anmeldung.', 'err'); });
 });
 document.getElementById('cr-spieler-btn').addEventListener('click', function(){
@@ -3448,6 +3571,7 @@ document.getElementById('cr-spieler-btn').addEventListener('click', function(){
     CA_ANGEMELDET = true;
     document.getElementById('cr-gate').style.display = 'none';
     document.getElementById('cr-bereich').style.display = 'block';
+    rEntwurfListeLaden();
   }).catch(function(){ setStatus('cr-status','Fehler bei der Anmeldung.', 'err'); });
 });
 document.getElementById('cr-logout').addEventListener('click', function(){
@@ -3462,6 +3586,7 @@ document.querySelector('[data-panel="c-rechnung"]').addEventListener('click', fu
   if(CA_ANGEMELDET){
     document.getElementById('cr-gate').style.display = 'none';
     document.getElementById('cr-bereich').style.display = 'block';
+    rEntwurfListeLaden();
   }
 });
 
