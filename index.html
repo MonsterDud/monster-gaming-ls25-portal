@@ -171,6 +171,13 @@ button.send{font-size:17px;padding:12px 26px}
 .badge-status.warte{background:#D8CE8F}
 .badge-status.fertig{background:var(--green-br)}
 .badge-status.abgelehnt{background:#D9A99B}
+.status-pille{display:inline-block;font-family:"Barlow Condensed",sans-serif;font-weight:600;
+  font-size:12px;letter-spacing:.03em;padding:3px 10px;border-radius:12px;background:#D8D8D8;color:#222}
+.status-pille.st-neu{background:#BFD4E8;color:#17324D}
+.status-pille.st-bearbeitung{background:#E8D18F;color:#4D3B10}
+.status-pille.st-genehmigt{background:var(--green-br);color:#172010}
+.status-pille.st-abgelehnt{background:#D9A99B;color:#4D1F15}
+.status-pille.st-erledigt{background:#A9C9A9;color:#16311A}
 .badge-typ{display:inline-block;font-family:"Barlow Condensed",sans-serif;font-weight:600;
   font-size:11.5px;letter-spacing:.03em;padding:2px 9px;border-radius:10px;
   background:var(--stone);color:#F0F3EA;margin-left:8px}
@@ -467,6 +474,7 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
       <button class="tab aktiv" data-panel="pf-posteingang" type="button">Postfach<span id="pf-badge" class="badge-status neu" style="display:none;margin-left:6px">0</span></button>
       <button class="tab" data-panel="pf-neu" type="button">Neue Nachricht</button>
       <button class="tab" data-panel="pf-gesendet" type="button">Gesendet</button>
+      <button class="tab" data-panel="ko-antraege" type="button">Meine Antr&auml;ge</button>
       <button class="tab" data-panel="ko-einstellungen" type="button">Einstellungen</button>
     </div>
 
@@ -521,6 +529,16 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
       </div>
       <div class="status" id="pf-gesendet-status" role="status" aria-live="polite"></div>
       <div id="pf-gesendet-liste"></div>
+    </section>
+
+    <section class="panel" id="ko-antraege">
+      <p class="lead">Alle Antr&auml;ge, die du bei Rathaus, Polizei, Feuerwehr oder Bauordnungsamt
+      unter deinem Charakternamen gestellt hast &mdash; der Status aktualisiert sich automatisch.</p>
+      <div class="tools" style="margin-bottom:10px">
+        <button class="act ghost" id="ko-an-reload" type="button">Aktualisieren</button>
+      </div>
+      <div class="status" id="ko-an-status" role="status" aria-live="polite"></div>
+      <div id="ko-an-liste"></div>
     </section>
 
     <section class="panel" id="ko-einstellungen">
@@ -1509,8 +1527,49 @@ function pfPollingStarten(){
   PF_POLL_INTERVAL = setInterval(function(){
     if(!AKTIVER_SPIELER.name) return;
     pfPosteingangLaden();
+    koAntraegeLaden();
   }, PF_POLL_MS);
 }
+function koAntraegeKarteHtml(a){
+  return '<div class="karte" data-id="'+a.id+'">'+
+    '<div class="karte-kopf"><span class="anr">'+escHtml(a.amt)+' &mdash; '+escHtml(a.betreff || a.kategorie)+'</span>'+
+    statusPilleHtml(a.status)+'</div>'+
+    '<dl>'+
+      '<div><dt>Kategorie</dt><dd>'+escHtml(a.kategorie)+'</dd></div>'+
+      '<div><dt>Eingegangen</dt><dd>'+escHtml(a.eingegangen)+'</dd></div>'+
+      '<div><dt>Antragsnummer</dt><dd>'+escHtml(a.id)+'</dd></div>'+
+    '</dl>'+
+    '<div class="tools"><button class="act ghost ko-an-loeschen" type="button">L&ouml;schen</button></div>'+
+    '<div class="status ko-an-karte-status" role="status" aria-live="polite"></div>'+
+  '</div>';
+}
+function koAntraegeLaden(){
+  if(scriptFehlt() || !AKTIVER_SPIELER.name) return;
+  setStatus('ko-an-status','Wird geladen …');
+  post({ aktion:'antraege_meine_spieler', name:AKTIVER_SPIELER.name, passwort:AKTIVER_SPIELER.passwort }).then(function(res){
+    if(!res.ok){ setStatus('ko-an-status','Fehler beim Laden.', 'err'); return; }
+    setStatus('ko-an-status','','');
+    var liste = (res.daten || []).slice().reverse();
+    var el = document.getElementById('ko-an-liste');
+    el.innerHTML = liste.length ? liste.map(koAntraegeKarteHtml).join('') :
+      '<p class="leer">Noch keine Anträge gestellt.</p>';
+    el.querySelectorAll('.karte').forEach(function(karte){
+      karte.querySelector('.ko-an-loeschen').addEventListener('click', function(){
+        if(!confirm('Diesen Antrag wirklich zurückziehen/löschen?')) return;
+        var txt = karte.querySelector('.ko-an-karte-status');
+        txt.textContent = 'Wird gelöscht …'; txt.className = 'status ko-an-karte-status';
+        post({
+          aktion:'antrag_loeschen_spieler', name:AKTIVER_SPIELER.name, passwort:AKTIVER_SPIELER.passwort,
+          id: karte.getAttribute('data-id')
+        }).then(function(r){
+          if(r.ok) karte.remove();
+          else { txt.textContent = 'Fehler beim Löschen.'; txt.className = 'status ko-an-karte-status err'; }
+        }).catch(function(){ txt.textContent = 'Fehler beim Löschen.'; txt.className = 'status ko-an-karte-status err'; });
+      });
+    });
+  }).catch(function(){ setStatus('ko-an-status','Fehler beim Laden.', 'err'); });
+}
+document.getElementById('ko-an-reload').addEventListener('click', koAntraegeLaden);
 function pfPollingStoppen(){
   if(PF_POLL_INTERVAL){ clearInterval(PF_POLL_INTERVAL); PF_POLL_INTERVAL = null; }
 }
@@ -1538,6 +1597,7 @@ function kontoAnzeigen(){
   FIRMEN_VERWALTUNG.laden();
   cornerstoneStatusLaden();
   pfPosteingangLaden();
+  koAntraegeLaden();
   pfPollingStarten();
 }
 function kontoAbmelden(){
@@ -1561,6 +1621,7 @@ function kontoAbmelden(){
   document.getElementById('pf-liste').innerHTML = '';
   document.getElementById('pf-gesendet-liste').innerHTML = '';
   document.getElementById('pf-badge').style.display = 'none';
+  document.getElementById('ko-an-liste').innerHTML = '';
 }
 document.getElementById('ko-logout').addEventListener('click', kontoAbmelden);
 document.getElementById('kw-logout-btn').addEventListener('click', kontoAbmelden);
@@ -2168,11 +2229,18 @@ document.getElementById('cs-uebernehmen-btn').addEventListener('click', function
 
 /* ================= VERWALTUNG (Rathaus/Polizei/Feuerwehr/Bauordnungsamt) ================= */
 var ANTRAG_STATUS_LISTE = ['Neu','In Bearbeitung','Genehmigt','Abgelehnt','Erledigt'];
+var ANTRAG_STATUS_KLASSE = {
+  'Neu':'st-neu', 'In Bearbeitung':'st-bearbeitung', 'Genehmigt':'st-genehmigt',
+  'Abgelehnt':'st-abgelehnt', 'Erledigt':'st-erledigt'
+};
+function statusPilleHtml(status){
+  return '<span class="status-pille '+(ANTRAG_STATUS_KLASSE[status]||'')+'">'+escHtml(status)+'</span>';
+}
 
 function antragKarteHtml(a){
   return '<div class="karte" data-id="'+a.id+'">'+
     '<div class="karte-kopf"><span class="anr">'+escHtml(a.betreff || a.kategorie)+'</span>'+
-    '<span class="badge-typ">'+escHtml(a.kategorie)+'</span></div>'+
+    '<span class="badge-typ">'+escHtml(a.kategorie)+'</span> '+statusPilleHtml(a.status)+'</div>'+
     '<dl>'+
       '<div><dt>Von</dt><dd>'+escHtml(a.name)+(a.handy?' &middot; '+escHtml(a.handy):'')+'</dd></div>'+
       '<div><dt>Eingegangen</dt><dd>'+escHtml(a.eingegangen)+'</dd></div>'+
@@ -2184,7 +2252,8 @@ function antragKarteHtml(a){
       '</select></div>'+
       '<div class="fld wide"><label>Notiz (intern)</label><input class="an-notiz" value="'+escHtml(a.notiz||'')+'"></div>'+
     '</div>'+
-    '<div class="tools"><button class="act ghost an-speichern" type="button">Speichern</button></div>'+
+    '<div class="tools"><button class="act ghost an-speichern" type="button">Speichern</button>'+
+      '<button class="act ghost an-loeschen" type="button">L&ouml;schen</button></div>'+
     '<div class="status an-status-txt" role="status" aria-live="polite"></div>'+
   '</div>';
 }
@@ -2260,6 +2329,15 @@ function erstelleAmtBereich(cfg){
           if(res.ok){ txt.textContent = 'Gespeichert.'; txt.className = 'status an-status-txt ok'; }
           else { txt.textContent = 'Fehler beim Speichern.'; txt.className = 'status an-status-txt err'; }
         }).catch(function(){ txt.textContent = 'Fehler beim Speichern.'; txt.className = 'status an-status-txt err'; });
+      });
+      karte.querySelector('.an-loeschen').addEventListener('click', function(){
+        if(!confirm('Diesen Antrag wirklich endgültig löschen?')) return;
+        var txt = karte.querySelector('.an-status-txt');
+        txt.textContent = 'Wird gelöscht …'; txt.className = 'status an-status-txt';
+        post({ aktion:'antrag_loeschen_admin', code:cfg.code, id: karte.getAttribute('data-id') }).then(function(res){
+          if(res.ok) karte.remove();
+          else { txt.textContent = 'Fehler beim Löschen.'; txt.className = 'status an-status-txt err'; }
+        }).catch(function(){ txt.textContent = 'Fehler beim Löschen.'; txt.className = 'status an-status-txt err'; });
       });
     });
   }
