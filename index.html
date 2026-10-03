@@ -1600,23 +1600,39 @@ function mitWiederholung(promiseFn){
     return new Promise(function(resolve){ setTimeout(resolve, 1500); }).then(promiseFn);
   });
 }
+// Schickt Anfragen ans Google-Script der Reihe nach statt alle gleichzeitig.
+// Beim Laden einer Seite (Login, Tab-Wechsel, Polling) feuert das Portal
+// sonst schnell ein Dutzend Anfragen auf einmal los — das kann bei Apps
+// Script dazu führen, dass eine Antwort ganz ohne CORS-Header zurückkommt,
+// obwohl sie serverseitig sauber durchläuft. Eine Anfrage nach der anderen
+// vermeidet diese Überlastung.
+var NETZWERK_WARTESCHLANGE = Promise.resolve();
+function nacheinander(aufgabe){
+  var ergebnis = NETZWERK_WARTESCHLANGE.then(aufgabe, aufgabe);
+  NETZWERK_WARTESCHLANGE = ergebnis.then(function(){}, function(){});
+  return ergebnis;
+}
 function post(daten){
-  return mitWiederholung(function(){
-    return mitTimeout(function(){
-      // Bewusst kein expliziter Content-Type-Header: der Browser setzt dafür
-      // automatisch "text/plain;charset=UTF-8", was als "einfache" Anfrage
-      // gilt (kein Preflight).
-      return fetch(SCRIPT_URL, {
-        method:'POST',
-        body: JSON.stringify(daten)
-      }).then(function(r){ return r.json() });
+  return nacheinander(function(){
+    return mitWiederholung(function(){
+      return mitTimeout(function(){
+        // Bewusst kein expliziter Content-Type-Header: der Browser setzt dafür
+        // automatisch "text/plain;charset=UTF-8", was als "einfache" Anfrage
+        // gilt (kein Preflight).
+        return fetch(SCRIPT_URL, {
+          method:'POST',
+          body: JSON.stringify(daten)
+        }).then(function(r){ return r.json() });
+      });
     });
   });
 }
 function get(query){
-  return mitWiederholung(function(){
-    return mitTimeout(function(){
-      return fetch(SCRIPT_URL + query).then(function(r){ return r.json() });
+  return nacheinander(function(){
+    return mitWiederholung(function(){
+      return mitTimeout(function(){
+        return fetch(SCRIPT_URL + query).then(function(r){ return r.json() });
+      });
     });
   });
 }
