@@ -1619,8 +1619,8 @@ function nacheinander(aufgabe){
 // zu einer Antwort ganz ohne CORS-Header. Deshalb hier als letzte Rettung.
 function postUeberGet(daten){
   var url = SCRIPT_URL + '?aktion=' + encodeURIComponent(daten.aktion || '') +
-    '&daten=' + encodeURIComponent(JSON.stringify(daten));
-  return fetch(url).then(function(r){ return r.json(); });
+    '&daten=' + encodeURIComponent(JSON.stringify(daten)) + '&_=' + Date.now();
+  return fetch(url, { cache:'no-store' }).then(function(r){ return r.json(); });
 }
 function post(daten){
   return nacheinander(function(){
@@ -1643,7 +1643,12 @@ function get(query){
   return nacheinander(function(){
     return mitWiederholung(function(){
       return mitTimeout(function(){
-        return fetch(SCRIPT_URL + query).then(function(r){ return r.json() });
+        // "_=" mit aktuellem Zeitstempel verhindert, dass der Browser (oder
+        // Googles Content-Server) eine ältere Antwort für dieselbe URL aus
+        // dem Cache zurückgibt — sonst sieht z. B. der Antragsteller eine
+        // frische Bauleitungs-Änderung erst nach einem harten Reload.
+        var url = SCRIPT_URL + query + '&_=' + Date.now();
+        return fetch(url, { cache:'no-store' }).then(function(r){ return r.json() });
       });
     });
   });
