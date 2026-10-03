@@ -1024,23 +1024,38 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
   <!-- Zeiterfassung (nur Cornerstone-Mitarbeiter) -->
   <section class="panel" id="c-zeit">
     <p class="lead">Erfasse deine Arbeitszeit bei Cornerstone &mdash; w&auml;hle optional das
-    Ger&auml;t/Fahrzeug, das du gerade nutzt, und stemple dich ein und aus. Du kannst dabei
-    bis zu 5 Helfer mit einstempeln &mdash; jeder bekommt einen eigenen Zeiteintrag, und beim
-    Ausstempeln werden alle gemeinsam wieder beendet.</p>
+    Ger&auml;t/Fahrzeug, das du gerade nutzt, und stemple dich ein und aus. Du kannst daneben
+    auch Helfer einstempeln &mdash; jede Person l&auml;uft komplett unabh&auml;ngig und wird
+    einzeln wieder ausgestempelt, nicht gemeinsam mit dir.</p>
 
     <div class="karte" style="margin-bottom:18px">
+      <h2 class="sec" style="margin-top:0">Ich</h2>
       <div class="meta">
         <div class="fld wide"><label for="ze-geraet">Ger&auml;t / Fahrzeug (optional)</label>
           <select id="ze-geraet"><option value="">&ndash; Ger&auml;t w&auml;hlen &ndash;</option></select></div>
-      </div>
-      <p class="lead" style="margin:14px 0 6px">Helfer, die nebenbei im Autodrive mitlaufen (optional, bis zu 5):</p>
-      <div class="meta" id="ze-helfer-zeilen"></div>
-      <div class="tools">
         <button class="act" id="ze-ein-btn" type="button">Einstempeln</button>
         <button class="act ghost" id="ze-aus-btn" type="button" style="display:none">Ausstempeln</button>
       </div>
       <div class="status" id="ze-status" role="status" aria-live="polite"></div>
     </div>
+
+    <div class="karte" style="margin-bottom:18px">
+      <h2 class="sec" style="margin-top:0">Helfer einstempeln</h2>
+      <p class="lead" style="margin:0 0 10px">Jeder Helfer bekommt einen eigenen, unabh&auml;ngigen Zeiteintrag.</p>
+      <div class="meta">
+        <div class="fld"><label for="ze-helfer-name">Name</label><input id="ze-helfer-name" placeholder="Ingame-Name"></div>
+        <div class="fld wide"><label for="ze-helfer-geraet">Ger&auml;t / Fahrzeug (optional)</label>
+          <select id="ze-helfer-geraet"><option value="">&ndash; Ger&auml;t w&auml;hlen &ndash;</option></select></div>
+        <button class="act" id="ze-helfer-ein-btn" type="button">Helfer einstempeln</button>
+      </div>
+      <div class="status" id="ze-helfer-status" role="status" aria-live="polite"></div>
+    </div>
+
+    <h2 class="sec">Aktuell eingestempelt</h2>
+    <div class="tools" style="margin-bottom:10px">
+      <button class="act ghost" id="ze-offene-reload" type="button">Aktualisieren</button>
+    </div>
+    <div id="ze-offene-liste"></div>
 
     <h2 class="sec">Meine Zeiten</h2>
     <div class="tools" style="margin-bottom:10px">
@@ -2462,7 +2477,7 @@ function csTabsSetzen(zeigen, istMitarbeiter){
       if(sec) sec.classList.remove('aktiv');
     });
   }
-  if(istMitarbeiter){ zeMeineLaden(); zeTeamSichtbarkeitPruefen(); }
+  if(istMitarbeiter){ zeMeineLaden(); zeOffeneLaden(); zeTeamSichtbarkeitPruefen(); }
   else {
     ['c-zeit','c-grubenplan'].forEach(function(panel){
       var btn = document.querySelector('[data-panel="'+panel+'"]');
@@ -2477,8 +2492,13 @@ function csTabsSetzen(zeigen, istMitarbeiter){
 }
 
 /* ---- Zeiterfassung (Cornerstone-Mitarbeiter) ---- */
+// Jede Person (man selbst + beliebig viele Helfer) wird einzeln und völlig
+// unabhängig ein-/ausgestempelt. "zeit_offene" liefert immer den aktuellen
+// Live-Stand aus dem Sheet, damit das auch nach einem Neuladen der Seite
+// korrekt angezeigt wird (nicht an lokale Formularfelder gebunden).
 var ZE_MEINE_DATEN = [];
 var ZE_TEAM_DATEN = [];
+var ZE_OFFENE_DATEN = [];
 var ZE_GERAETE_GELADEN = false;
 function zeKarteHtml(a, mitSpieler, darfLoeschen){
   return '<div class="karte" data-id="'+a.id+'">'+
@@ -2490,7 +2510,6 @@ function zeKarteHtml(a, mitSpieler, darfLoeschen){
       '<div><dt>Dauer</dt><dd>'+(a.dauerMin!==''?escHtml(String(a.dauerMin))+' Min.':'&ndash;')+'</dd></div>'+
     '</dl>'+
     (a.von?'<div class="beschreibung"><b>Eingestempelt von:</b> '+escHtml(a.von)+'</div>':'')+
-    (a.helfer?'<div class="beschreibung"><b>Helfer (Autodrive):</b> '+escHtml(a.helfer)+'</div>':'')+
     (darfLoeschen?'<div class="tools"><button class="act ghost ze-loeschen" type="button">L&ouml;schen</button></div>':'')+
   '</div>';
 }
@@ -2498,27 +2517,10 @@ function zeStatusAktualisieren(eingestempelt){
   document.getElementById('ze-ein-btn').style.display = eingestempelt ? 'none' : '';
   document.getElementById('ze-aus-btn').style.display = eingestempelt ? '' : 'none';
   document.getElementById('ze-geraet').disabled = eingestempelt;
-  for(var i = 1; i <= 5; i++){
-    var nameFeld = document.getElementById('ze-helfer-name-'+i);
-    var geraetFeld = document.getElementById('ze-helfer-geraet-'+i);
-    if(nameFeld) nameFeld.disabled = eingestempelt;
-    if(geraetFeld) geraetFeld.disabled = eingestempelt;
-  }
 }
 var ZE_GERAETE_OPTIONEN_HTML = '<option value="">– Gerät wählen –</option>';
 function zeGeraeteOptionenHtml(){
   return ZE_GERAETE_OPTIONEN_HTML + '<option value="__frei__">Andere / manuell eingeben …</option>';
-}
-function zeHelferZeilenAufbauen(){
-  var el = document.getElementById('ze-helfer-zeilen');
-  var html = '';
-  for(var i = 1; i <= 5; i++){
-    html += '<div class="fld"><label for="ze-helfer-name-'+i+'">Helfer '+i+'</label>'+
-      '<input id="ze-helfer-name-'+i+'" placeholder="Name"></div>'+
-      '<div class="fld"><label for="ze-helfer-geraet-'+i+'">Fahrzeug/Ger&auml;t</label>'+
-      '<select id="ze-helfer-geraet-'+i+'">'+zeGeraeteOptionenHtml()+'</select></div>';
-  }
-  el.innerHTML = html;
 }
 function zeGeraeteLaden(){
   if(ZE_GERAETE_GELADEN || scriptFehlt()) return;
@@ -2532,7 +2534,7 @@ function zeGeraeteLaden(){
     });
     ZE_GERAETE_OPTIONEN_HTML = '<option value="">– Gerät wählen –</option>' +
       namen.map(function(n){ return '<option value="'+escHtml(n)+'">'+escHtml(n)+'</option>'; }).join('');
-    ['ze-geraet','ze-helfer-geraet-1','ze-helfer-geraet-2','ze-helfer-geraet-3','ze-helfer-geraet-4','ze-helfer-geraet-5'].forEach(function(id){
+    ['ze-geraet','ze-helfer-geraet'].forEach(function(id){
       var sel = document.getElementById(id);
       if(!sel) return;
       var aktuell = sel.value;
@@ -2550,22 +2552,6 @@ function zeGeraetWertVon(sel){
 function zeGeraetWert(){
   return zeGeraetWertVon(document.getElementById('ze-geraet'));
 }
-function zeHelferListe(){
-  var liste = [];
-  for(var i = 1; i <= 5; i++){
-    var name = document.getElementById('ze-helfer-name-'+i).value.trim();
-    if(!name) continue;
-    var geraet = zeGeraetWertVon(document.getElementById('ze-helfer-geraet-'+i));
-    liste.push({ name:name, geraet:geraet || '' });
-  }
-  return liste;
-}
-function zeHelferFelderLeeren(){
-  for(var i = 1; i <= 5; i++){
-    document.getElementById('ze-helfer-name-'+i).value = '';
-    document.getElementById('ze-helfer-geraet-'+i).value = '';
-  }
-}
 function zeCsvHerunterladen(liste, mitSpieler, dateiname){
   var kopf = mitSpieler ? ['Mitarbeiter','Gerät','Start','Ende','Dauer (Min.)','Eingestempelt von'] : ['Gerät','Start','Ende','Dauer (Min.)','Eingestempelt von'];
   var zeilen = [kopf];
@@ -2580,12 +2566,55 @@ function zeCsvHerunterladen(liste, mitSpieler, dateiname){
   a.href = url; a.download = dateiname; document.body.appendChild(a); a.click();
   document.body.removeChild(a); URL.revokeObjectURL(url);
 }
+function zeOffeneHtml(a, darfAusstempeln){
+  return '<div class="karte" data-ziel="'+escHtml(a.spieler)+'">'+
+    '<div class="karte-kopf"><span class="anr">'+escHtml(a.spieler)+' &mdash; '+escHtml(a.geraet || 'Kein Gerät angegeben')+'</span>'+
+    '<span class="badge-typ">L&auml;uft</span></div>'+
+    '<dl><div><dt>Start</dt><dd>'+escHtml(a.start)+'</dd></div></dl>'+
+    (a.von?'<div class="beschreibung"><b>Eingestempelt von:</b> '+escHtml(a.von)+'</div>':'')+
+    (darfAusstempeln?'<div class="tools"><button class="act ghost ze-offen-aus" type="button">Ausstempeln</button></div>':'')+
+  '</div>';
+}
+function zeOffeneLaden(){
+  if(scriptFehlt() || !AKTIVER_SPIELER.name) return;
+  get('?aktion=zeit_offene&name='+encodeURIComponent(AKTIVER_SPIELER.name)+'&passwort='+encodeURIComponent(AKTIVER_SPIELER.passwort)).then(function(res){
+    if(!res.ok) return;
+    ZE_OFFENE_DATEN = res.daten || [];
+    var eigenKlein = AKTIVER_SPIELER.name.trim().toLowerCase();
+    zeStatusAktualisieren(ZE_OFFENE_DATEN.some(function(a){ return a.spieler.trim().toLowerCase() === eigenKlein; }));
+    var el = document.getElementById('ze-offene-liste');
+    el.innerHTML = ZE_OFFENE_DATEN.length ? ZE_OFFENE_DATEN.map(function(a){
+      var darf = a.spieler.trim().toLowerCase() === eigenKlein || (a.von||'').trim().toLowerCase() === eigenKlein;
+      return zeOffeneHtml(a, darf);
+    }).join('') : '<p class="leer">Gerade ist niemand eingestempelt.</p>';
+    el.querySelectorAll('.karte').forEach(function(karte){
+      var btn = karte.querySelector('.ze-offen-aus');
+      if(!btn) return;
+      btn.addEventListener('click', function(){
+        zeAusstempeln(karte.getAttribute('data-ziel'), btn);
+      });
+    });
+  }).catch(function(){});
+}
+function zeAusstempeln(zielName, btn){
+  if(btn) btn.disabled = true;
+  post({ aktion:'zeit_ausstempeln', name:AKTIVER_SPIELER.name, passwort:AKTIVER_SPIELER.passwort, zielName: zielName }).then(function(res){
+    if(res.ok){
+      var eigen = zielName.trim().toLowerCase() === AKTIVER_SPIELER.name.trim().toLowerCase();
+      setStatus(eigen ? 'ze-status' : 'ze-helfer-status', (eigen?'Ausgestempelt':escHtml(zielName)+' ausgestempelt')+' — Dauer: '+res.dauerMin+' Min.', 'ok');
+      zeOffeneLaden(); zeMeineLaden();
+      if(document.getElementById('ze-team-box').style.display !== 'none') zeTeamLaden();
+    } else {
+      if(btn) btn.disabled = false;
+      setStatus('ze-helfer-status','Fehler beim Ausstempeln.', 'err');
+    }
+  }).catch(function(){ if(btn) btn.disabled = false; setStatus('ze-helfer-status','Fehler beim Ausstempeln.', 'err'); });
+}
 function zeMeineLaden(){
   if(scriptFehlt() || !AKTIVER_SPIELER.name) return;
   zeGeraeteLaden();
   get('?aktion=zeit_meine&name='+encodeURIComponent(AKTIVER_SPIELER.name)+'&passwort='+encodeURIComponent(AKTIVER_SPIELER.passwort)).then(function(res){
     if(!res.ok) return;
-    zeStatusAktualisieren(res.eingestempelt);
     ZE_MEINE_DATEN = (res.daten || []).slice().reverse();
     var el = document.getElementById('ze-meine-liste');
     el.innerHTML = ZE_MEINE_DATEN.length ? ZE_MEINE_DATEN.map(function(a){ return zeKarteHtml(a, false, true); }).join('') :
@@ -2630,30 +2659,32 @@ function zeTeamLaden(){
 }
 document.getElementById('ze-ein-btn').addEventListener('click', function(){
   var geraet = zeGeraetWert();
-  var helfer = zeHelferListe();
   setStatus('ze-status','Wird gespeichert …');
-  post({ aktion:'zeit_einstempeln', name:AKTIVER_SPIELER.name, passwort:AKTIVER_SPIELER.passwort,
-         geraet: geraet, helfer: helfer }).then(function(res){
-    if(res.ok){
-      var txt = 'Eingestempelt' + (helfer.length ? ' (du + '+(helfer.length-(res.uebersprungen?res.uebersprungen.length:0))+' Helfer)' : '') + '.';
-      if(res.uebersprungen && res.uebersprungen.length) txt += ' Übersprungen (schon eingestempelt): '+res.uebersprungen.join(', ')+'.';
-      setStatus('ze-status', txt, 'ok'); zeHelferFelderLeeren(); zeMeineLaden();
-      if(document.getElementById('ze-team-box').style.display !== 'none') zeTeamLaden();
-    }
+  post({ aktion:'zeit_einstempeln', name:AKTIVER_SPIELER.name, passwort:AKTIVER_SPIELER.passwort, geraet: geraet }).then(function(res){
+    if(res.ok){ setStatus('ze-status','Eingestempelt.', 'ok'); zeOffeneLaden(); zeMeineLaden(); if(document.getElementById('ze-team-box').style.display !== 'none') zeTeamLaden(); }
     else setStatus('ze-status', res.fehler === 'bereits_eingestempelt' ? 'Du bist bereits eingestempelt.' : 'Fehler beim Einstempeln.', 'err');
   }).catch(function(){ setStatus('ze-status','Fehler beim Einstempeln.', 'err'); });
 });
 document.getElementById('ze-aus-btn').addEventListener('click', function(){
   setStatus('ze-status','Wird gespeichert …');
-  post({ aktion:'zeit_ausstempeln', name:AKTIVER_SPIELER.name, passwort:AKTIVER_SPIELER.passwort }).then(function(res){
-    if(res.ok){
-      var txt = 'Ausgestempelt — Dauer: '+res.dauerMin+' Min.' + (res.mitBeendet ? ' (+ '+res.mitBeendet+' Helfer mit ausgestempelt)' : '');
-      setStatus('ze-status', txt, 'ok'); document.getElementById('ze-geraet').value=''; zeHelferFelderLeeren(); zeMeineLaden();
-      if(document.getElementById('ze-team-box').style.display !== 'none') zeTeamLaden();
-    }
-    else setStatus('ze-status','Fehler beim Ausstempeln.', 'err');
-  }).catch(function(){ setStatus('ze-status','Fehler beim Ausstempeln.', 'err'); });
+  zeAusstempeln(AKTIVER_SPIELER.name, null);
 });
+document.getElementById('ze-helfer-ein-btn').addEventListener('click', function(){
+  var name = document.getElementById('ze-helfer-name').value.trim();
+  if(!name){ setStatus('ze-helfer-status','Bitte einen Namen eingeben.', 'err'); return; }
+  var geraet = zeGeraetWertVon(document.getElementById('ze-helfer-geraet'));
+  setStatus('ze-helfer-status','Wird gespeichert …');
+  post({ aktion:'zeit_einstempeln', name:AKTIVER_SPIELER.name, passwort:AKTIVER_SPIELER.passwort, zielName:name, geraet: geraet }).then(function(res){
+    if(res.ok){
+      setStatus('ze-helfer-status', escHtml(name)+' eingestempelt.', 'ok');
+      document.getElementById('ze-helfer-name').value = '';
+      document.getElementById('ze-helfer-geraet').value = '';
+      zeOffeneLaden();
+      if(document.getElementById('ze-team-box').style.display !== 'none') zeTeamLaden();
+    } else setStatus('ze-helfer-status', res.fehler === 'bereits_eingestempelt' ? escHtml(name)+' ist bereits eingestempelt.' : 'Fehler beim Einstempeln.', 'err');
+  }).catch(function(){ setStatus('ze-helfer-status','Fehler beim Einstempeln.', 'err'); });
+});
+document.getElementById('ze-offene-reload').addEventListener('click', zeOffeneLaden);
 document.getElementById('ze-team-reload').addEventListener('click', zeTeamLaden);
 document.getElementById('ze-meine-csv').addEventListener('click', function(){
   zeCsvHerunterladen(ZE_MEINE_DATEN, false, 'meine-zeiten.csv');
@@ -2870,7 +2901,6 @@ window.addEventListener('DOMContentLoaded', function(){
     document.getElementById('cn-char').value = gemerkt;
     document.getElementById('cm-name').value = gemerkt;
   }
-  zeHelferZeilenAufbauen();
 });
 
 /* ================= HOF-VERZEICHNIS ================= */
