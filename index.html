@@ -763,6 +763,7 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
     <button class="tab" data-panel="c-preis" type="button">Preisliste</button>
     <button class="tab" id="cs-tab-rechnung" data-panel="c-rechnung" type="button" style="display:none">Rechnung</button>
     <button class="tab" id="cs-tab-zeit" data-panel="c-zeit" type="button" style="display:none">Zeiterfassung</button>
+    <button class="tab" id="cs-tab-grubenplan" data-panel="c-grubenplan" type="button" style="display:none">Grubenplan</button>
   </div>
 
   <!-- Neue Anfrage -->
@@ -1014,6 +1015,13 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
       </div>
       <div id="ze-team-liste"></div>
     </div>
+  </section>
+
+  <!-- Grubenplan (nur Cornerstone-Mitarbeiter) -->
+  <section class="panel" id="c-grubenplan">
+    <p class="lead">Referenz f&uuml;r alle Produktionsketten, Lagerkapazit&auml;ten und Bedarfsdeckung im Mining-Betrieb.</p>
+    <iframe src="grubenplan.html" title="Grubenplan Produktionsketten"
+      style="width:100%;height:85vh;border:1px solid var(--line-dim,#ccc);display:block"></iframe>
   </section>
   </section>
 
@@ -2263,6 +2271,7 @@ function csTabsSetzen(zeigen, istMitarbeiter){
   document.getElementById('cs-tab-admin').style.display = zeigen ? '' : 'none';
   document.getElementById('cs-tab-rechnung').style.display = zeigen ? '' : 'none';
   document.getElementById('cs-tab-zeit').style.display = istMitarbeiter ? '' : 'none';
+  document.getElementById('cs-tab-grubenplan').style.display = istMitarbeiter ? '' : 'none';
   if(!zeigen){
     ['c-admin','c-rechnung'].forEach(function(panel){
       var btn = document.querySelector('[data-panel="'+panel+'"]');
@@ -2273,10 +2282,12 @@ function csTabsSetzen(zeigen, istMitarbeiter){
   }
   if(istMitarbeiter){ zeMeineLaden(); zeTeamSichtbarkeitPruefen(); }
   else {
-    var btn = document.querySelector('[data-panel="c-zeit"]');
-    var sec = document.getElementById('c-zeit');
-    if(btn) btn.classList.remove('aktiv');
-    if(sec) sec.classList.remove('aktiv');
+    ['c-zeit','c-grubenplan'].forEach(function(panel){
+      var btn = document.querySelector('[data-panel="'+panel+'"]');
+      var sec = document.getElementById(panel);
+      if(btn) btn.classList.remove('aktiv');
+      if(sec) sec.classList.remove('aktiv');
+    });
     document.getElementById('ze-meine-liste').innerHTML = '';
     document.getElementById('ze-team-liste').innerHTML = '';
     document.getElementById('ze-team-box').style.display = 'none';

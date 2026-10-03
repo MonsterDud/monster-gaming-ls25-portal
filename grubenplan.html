@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grubenplan Produktionsketten</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    /* MonsterGaming-Grün: dunkles Grubenschwarz + Acid-Green wie im Server-Logo */
+    --bg:        #10130D;
+    --bg-panel:  #171C11;
+    --bg-panel2: #141810;
+    --bg-card:   #161B10;
+    --line:      #3D4C2A;
+    --line-dim:  #262E19;
+    --ink:       #EAF2E1;
+    --muted:     #92A583;
+    --accent:    #8FCE3F;
+    --accent-ink:#12250A;
+    --ok:        #8FCE3F;
+    --ok-ink:    #12250A;
+    --warn:      #C99A54;
+    --warn-ink:  #2B1C08;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  h1, h2, h3 { font-family: 'Big Shoulders Display', 'Arial Narrow', sans-serif; font-weight: 700; text-wrap: balance; margin: 0; }
+  code, .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ---------- Sticky control bar ---------- */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--bg-panel);
+    border-bottom: 1.5px solid var(--line);
+  }
+  .topbar-inner {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: baseline; gap: 10px; flex: none; }
+  .brand .mark { color: var(--accent); font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .1em; }
+  .brand h1 { font-size: 22px; }
+
+  .tabs { display: flex; gap: 4px; flex: none; }
+  .tab-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    letter-spacing: .03em;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid transparent;
+    padding: 8px 13px;
+    cursor: pointer;
+  }
+  .tab-btn:hover { color: var(--ink); }
+  .tab-btn[aria-selected="true"] {
+    color: var(--bg);
+    background: var(--accent);
+    font-weight: 600;
+  }
+  .tab-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .search-wrap { margin-left: auto; position: relative; flex: none; }
+  #search {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    padding: 8px 12px 8px 30px;
+    width: 200px;
+  }
+  #search::placeholder { color: var(--muted); }
+  #search:focus { outline: none; border-color: var(--accent); }
+  .search-wrap::before {
+    content: "⌕";
+    position: absolute;
+    left: 10px; top: 50%; transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 14px;
+    pointer-events: none;
+  }
+
+  main { max-width: 1180px; margin: 0 auto; padding: 28px 20px 80px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  p.lede { color: var(--muted); max-width: 68ch; font-size: 14px; margin: 0 0 22px; }
+
+  /* ---------- Stat tiles ---------- */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line-dim); border: 1px solid var(--line-dim); margin-bottom: 26px; }
+  .stat { background: var(--bg-panel); padding: 14px 16px; }
+  .stat .n { font-family: 'Big Shoulders Display'; font-size: 30px; color: var(--accent); line-height: 1; }
+  .stat .l { color: var(--muted); font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; margin-top: 5px; }
+
+  /* ---------- Legend ---------- */
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; font-size: 12.5px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .tag { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: .04em; padding: 2px 7px; font-weight: 600; }
+  .tag.fix  { background: var(--accent); color: var(--accent-ink); }
+  .tag.alt  { background: var(--warn);   color: var(--warn-ink); }
+  .tag.ok   { background: var(--ok);     color: var(--ok-ink); }
+
+  /* ---------- Group headings ---------- */
+  h2.group {
+    font-size: 20px;
+    color: var(--ink);
+    border-left: 4px solid var(--accent);
+    padding-left: 12px;
+    margin: 34px 0 4px;
+  }
+  h2.group:first-of-type { margin-top: 0; }
+  p.group-note { color: var(--muted); font-size: 13px; margin: 4px 0 16px 16px; max-width: 62ch; }
+
+  /* ---------- Card grid ---------- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 14px; }
+
+  .chain-card {
+    border: 1px solid var(--line);
+    background: var(--bg-card);
+    padding: 15px 17px 17px;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+  }
+  .chain-card.dimmed { display: none; }
+
+  .card-head { display: flex; justify-content: space-between; align-items: start; gap: 10px; }
+  .card-head h3 { font-size: 17px; line-height: 1.15; }
+  .card-head .price { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--accent); white-space: nowrap; text-align: right; flex: none; }
+  .card-head .price small { display: block; color: var(--muted); font-weight: 400; }
+  .card-sub { color: var(--muted); font-size: 11.5px; font-family: 'IBM Plex Mono', monospace; margin-top: -6px; }
+
+  .flow { border-top: 1px solid var(--line-dim); padding-top: 9px; }
+  .flow:first-of-type { border-top: none; padding-top: 0; }
+  .flow-label { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--muted); letter-spacing: .03em; margin-bottom: 5px; display: flex; justify-content: space-between; gap: 8px; }
+  .flow-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .chips { display: flex; gap: 5px; flex-wrap: wrap; }
+  .chip {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    background: var(--bg-panel2);
+    border: 1px solid var(--line-dim);
+    color: var(--ink);
+    padding: 3px 8px;
+    white-space: nowrap;
+  }
+  .chip.out { border-color: var(--ok); color: var(--ok); background: rgba(143,206,63,0.08); }
+  .de { color: var(--muted); font-weight: 400; font-size: 0.92em; }
+  .arrow { color: var(--accent); font-size: 15px; flex: none; }
+  .flow-meta { color: var(--muted); font-size: 11px; font-family: 'IBM Plex Mono', monospace; margin-top: 5px; }
+  .card-note { color: var(--muted); font-size: 12px; border-top: 1px solid var(--line-dim); padding-top: 8px; margin-top: 2px; }
+  .card-note b { color: var(--ink); }
+
+  /* ---------- Tables (Lager, Bedarfsdeckung) ---------- */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line-dim); margin-bottom: 6px; }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 13.5px; }
+  thead th {
+    text-align: left;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--bg);
+    background: var(--muted);
+    padding: 9px 12px;
+  }
+  tbody td { padding: 9px 12px; border-top: 1px solid var(--line-dim); vertical-align: top; }
+  tbody tr:hover td { background: rgba(143,206,63,0.05); }
+  td.name { font-weight: 600; white-space: nowrap; }
+
+  .pill { display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .04em; padding: 3px 9px; white-space: nowrap; }
+  .pill.ok   { background: var(--ok);   color: var(--ok-ink); }
+  .pill.warn { background: var(--warn); color: var(--warn-ink); }
+
+  .summary-box {
+    margin-top: 16px;
+    border: 1px dashed var(--accent);
+    background: rgba(143,206,63,0.08);
+    padding: 13px 16px;
+    font-size: 13.5px;
+  }
+  .summary-box b { color: var(--accent); }
+
+  /* ---------- Notes ---------- */
+  .notes { display: grid; gap: 13px; max-width: 820px; }
+  .note { display: grid; grid-template-columns: 230px 1fr; gap: 18px; border-top: 1px solid var(--line-dim); padding-top: 13px; }
+  .note:first-child { border-top: none; padding-top: 0; }
+  .note dt { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: var(--accent); }
+  .note dd { margin: 0; font-size: 13.5px; }
+
+  footer {
+    max-width: 1180px;
+    margin: 10px auto 40px;
+    padding: 0 20px;
+    color: var(--line);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+
+  .no-results { display: none; color: var(--muted); font-size: 13px; padding: 20px 0; }
+
+  @media (max-width: 640px) {
+    .note { grid-template-columns: 1fr; gap: 4px; }
+    #search { width: 140px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand"><span class="mark">⛏ GRUBENPLAN</span><h1>Produktionsketten Mining</h1></div>
+    <div class="tabs" role="tablist">
+      <button class="tab-btn" role="tab" aria-selected="true"  data-tab="ketten">Produktionsketten</button>
+      <button class="tab-btn" role="tab" aria-selected="false" data-tab="lager">Lager &amp; Stationen</button>
+      <button class="tab-btn" role="tab" aria-selected="false" data-tab="bedarf">Bedarfsdeckung</button>
+      <button class="tab-btn" role="tab" aria-selected="false" data-tab="hinweise">Hinweise</button>
+    </div>
+    <div class="search-wrap"><input id="search" type="text" placeholder="Material suchen…" autocomplete="off"></div>
+  </div>
+</div>
+
+<main>
+
+  <!-- ============ TAB: PRODUKTIONSKETTEN ============ -->
+  <section class="panel active" id="ketten">
+    <p class="lede">Alle Input-/Output-Rezepte deiner Mining-Anlagen. <span class="tag fix">FIX</span> = läuft erst durch FS25_RGC_FillTypeFix · <span class="tag alt">ALT</span> = optionales Alternativ-Rezept, braucht Zukauf, nicht nötig.</p>
+
+    <div class="stats">
+      <div class="stat"><div class="n num">15</div><div class="l">Fabriken</div></div>
+      <div class="stat"><div class="n num">5</div><div class="l">Mobile Anlagen</div></div>
+      <div class="stat"><div class="n num">10/11</div><div class="l">Ketten selbstversorgt</div></div>
+      <div class="stat"><div class="n num">1</div><div class="l">Rohstoff zum Kauf nötig</div></div>
+    </div>
+
+    <h2 class="group">Stationäre Fabriken</h2>
+    <div class="grid">
+
+      <div class="chain-card" data-search="asphaltwerk asphaltplant gravel sand asphalt">
+        <div class="card-head"><h3>Asphaltwerk</h3><div class="price">680.000&nbsp;€</div></div>
+        <div class="card-sub">asphaltPlant.xml</div>
+        <div class="flow">
+          <div class="flow-label"><span>ASPHALTMIX</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">GRAVEL 1000 L</span><span class="chip">SAND 400 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">ASPHALT 1100 L</span></div></div>
+          <div class="flow-meta">600/h · 45&nbsp;€/Zyklus</div>
+        </div>
+      </div>
+
+      <div class="chain-card" data-search="kiesfabrik gravelfactory stone gravel_mixed gravel_coarse gravel_fine sand">
+        <div class="card-head"><h3>Kiesfabrik</h3><div class="price">25.000&nbsp;€</div></div>
+        <div class="card-sub">gravelFactory.xml — 4-stufige Kette, gemeinsamer Durchsatz</div>
+        <div class="flow"><div class="flow-label"><span>1) mixed_gravel</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">STONE 25 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">GRAVEL_MIXED 25 L</span></div></div>
+          <div class="flow-meta">80/h · 8&nbsp;€/Zyklus</div></div>
+        <div class="flow"><div class="flow-label"><span>2) sorted_gravel</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">GRAVEL_MIXED 38 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">GRAVEL_COARSE 13 L</span><span class="chip out">GRAVEL_FINE 13 L</span><span class="chip out">SAND 13 L</span></div></div>
+          <div class="flow-meta">80/h</div></div>
+        <div class="flow"><div class="flow-label"><span>3) fine_gravel</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">GRAVEL_COARSE 25 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">GRAVEL_FINE 21 L</span><span class="chip out">SAND 6 L</span></div></div>
+          <div class="flow-meta">80/h · 1&nbsp;€/Zyklus</div></div>
+        <div class="flow"><div class="flow-label"><span>4) sand</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">GRAVEL_FINE 25 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">SAND 31 L</span></div></div>
+          <div class="flow-meta">80/h · 1&nbsp;€/Zyklus</div></div>
+      </div>
+
+      <div class="chain-card" data-search="betonwerk concretefactory sand gravel stone lime concrete">
+        <div class="card-head"><h3>Betonwerk</h3><div class="price">650.000&nbsp;€</div></div>
+        <div class="card-sub">concreteFactory.xml</div>
+        <div class="flow"><div class="flow-label"><span>CONCRETEFACTORY</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">SAND 200 L</span><span class="chip">GRAVEL 200 L</span><span class="chip">STONE 100 L</span><span class="chip">LIME 50 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">CONCRETE 500 L</span></div></div>
+          <div class="flow-meta">500/h · 5&nbsp;€/Zyklus · alle Inputs BF 50</div></div>
+        <div class="card-note">LIME kommt seit Rotor Crusher Lime Production aus eigener Produktion — kein Zukauf mehr nötig.</div>
+      </div>
+
+      <div class="chain-card" data-search="zementfabrik cementfactoryus stone cement roofplates cementbricks vanilla us map">
+        <div class="card-head"><h3>Zementfabrik US</h3><div class="price">400.000&nbsp;€</div></div>
+        <div class="card-sub">cementFactoryUS.xml — Vanilla US-Map-Gebäude</div>
+        <div class="flow"><div class="flow-label"><span>1) cementBags</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">STONE 1500 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">CEMENT 300 L</span></div></div>
+          <div class="flow-meta">25/h · 1&nbsp;€/Zyklus</div></div>
+        <div class="flow"><div class="flow-label"><span>2) roofPlate</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">STONE 1500 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">ROOFPLATES 250 L</span></div></div>
+          <div class="flow-meta">25/h · 5&nbsp;€/Zyklus</div></div>
+        <div class="flow"><div class="flow-label"><span>3) cementBrick</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">STONE 1500 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">CEMENTBRICKS 250 L</span></div></div>
+          <div class="flow-meta">25/h · 2&nbsp;€/Zyklus</div></div>
+        <div class="card-note">Kein loadingStation — Ausgabe über PalletSpawner (Paletten), nicht als Schüttgut.</div>
+      </div>
+
+      <div class="chain-card" data-search="rivesand trommel riversandtrimmel riversand water riversandp stone fsm_recyclingfacilities">
+        <div class="card-head"><h3>Rivesand Trommel <span class="tag fix">FIX</span></h3><div class="price">5.000&nbsp;€<small>+50/Tag</small></div></div>
+        <div class="card-sub">riverSandTrimmel.xml — Mod FSM_RecyclingFacilities_FS25</div>
+        <div class="flow"><div class="flow-label"><span>RiverSand Trommel</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">RIVERSAND 2000 L</span><span class="chip">WATER 5 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">RIVERSANDP 1200 L</span><span class="chip out">STONE 800 L</span></div></div>
+          <div class="flow-meta">500/h · 1,25&nbsp;€/Zyklus</div></div>
+        <div class="card-note">Läuft erst seit RIVERSAND + RIVERSANDP über <b>FS25_RGC_FillTypeFix</b> nachregistriert wurden.</div>
+      </div>
+
+      <div class="chain-card" data-search="static trommel soil stone topsoil potsoil gravel_mixed additionalfilltypes">
+        <div class="card-head"><h3>Static Trommel</h3><div class="price">25.000&nbsp;€<small>+50/Tag</small></div></div>
+        <div class="card-sub">trommelStatic.xml — „WORKS ONLY WITH ADDITIONAL FILLTYPES"</div>
+        <div class="flow"><div class="flow-label"><span>Trommel Static (4 Materials)</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">SOIL 6500 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">STONE 500 L</span><span class="chip out">TOPSOIL 2000 L</span><span class="chip out">POTSOIL 2000 L</span><span class="chip out">GRAVEL_MIXED 1500 L</span></div></div>
+          <div class="flow-meta">500/h · 5,25&nbsp;€/Zyklus</div></div>
+        <div class="card-note">SOIL über TerraFarm gewinnbar; TOPSOIL/POTSOIL aus AdditionalFilltypes (installiert).</div>
+      </div>
+
+      <div class="chain-card" data-search="static trommel belts a soil topsoil potsoil gravel_mixed">
+        <div class="card-head"><h3>Static Trommel Belts A</h3><div class="price">21.000&nbsp;€</div></div>
+        <div class="card-sub">trommelStatic_BeltsA.xml</div>
+        <div class="flow"><div class="flow-label"><span>Trommel Static</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">SOIL 5500 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">TOPSOIL 2000 L</span><span class="chip out">POTSOIL 2000 L</span><span class="chip out">GRAVEL_MIXED 1500 L</span></div></div>
+          <div class="flow-meta">400/h · 5,25&nbsp;€/Zyklus</div></div>
+        <div class="card-note">Wie Static Trommel, ohne STONE-Output. SOIL über TerraFarm gewinnbar.</div>
+      </div>
+
+      <div class="chain-card" data-search="static trommel belts f rubble sand gravel stone">
+        <div class="card-head"><h3>Static Trommel Belts F <span class="tag fix">FIX</span></h3><div class="price">21.000&nbsp;€</div></div>
+        <div class="card-sub">trommelStatic_BeltsF.xml</div>
+        <div class="flow"><div class="flow-label"><span>Trommel Static 1 (2 Materials)</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">RUBBLE 5500 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">SAND 2500 L</span><span class="chip out">GRAVEL 2500 L</span><span class="chip out">STONE 500 L</span></div></div>
+          <div class="flow-meta">400/h · 5,25&nbsp;€/Zyklus</div></div>
+        <div class="card-note">Läuft erst seit RUBBLE über <b>FS25_RGC_FillTypeFix</b> nachregistriert wurde.</div>
+      </div>
+
+      <div class="chain-card" data-search="materialaufbereitung dirtprocessor dirt iron stone sand gravel limestone lime">
+        <div class="card-head"><h3>Materialaufbereitung</h3><div class="price">550.000&nbsp;€</div></div>
+        <div class="card-sub">dirtProcessor.xml</div>
+        <div class="flow"><div class="flow-label"><span>1) IRONPROCESSOR</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">DIRT 4000 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">IRON 500 L</span><span class="chip out">STONE 500 L</span><span class="chip out">SAND 600 L</span><span class="chip out">GRAVEL 600 L</span></div></div>
+          <div class="flow-meta">2000/h · 10&nbsp;€/Zyklus</div></div>
+        <div class="flow"><div class="flow-label"><span>2) LIMEPROCESSOR</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">LIMESTONE 3000 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">LIME 600 L</span><span class="chip out">GRAVEL 250 L</span><span class="chip out">STONE 200 L</span><span class="chip out">SAND 200 L</span></div></div>
+          <div class="flow-meta">2000/h · 10&nbsp;€/Zyklus</div></div>
+        <div class="card-note">LIMESTONE kommt seit Limestone Kiln aus eigener Produktion — kein Zukauf mehr nötig.</div>
+      </div>
+
+      <div class="chain-card" data-search="limestone kiln filltypes for all limestonekilnf stone woodchips crushedcoal limestone">
+        <div class="card-head"><h3>Limestone Kiln <span class="tag ok">Filltypes For All</span></h3><div class="price">21.000&nbsp;€<small>+50/Tag</small></div></div>
+        <div class="card-sub">limestonekilnF.xml — Mod FSM_LimeProduction_Facilities</div>
+        <div class="flow"><div class="flow-label"><span>1) limestone kiln</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">STONE 5500 L</span><span class="chip">WOODCHIPS 3500 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">LIMESTONE 4200 L</span></div></div>
+          <div class="flow-meta">300/h · 1,25&nbsp;€/Zyklus</div></div>
+        <div class="flow"><div class="flow-label"><span>2) limestone kiln 1 <span class="tag alt">ALT</span></span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">STONE 5500 L</span><span class="chip">CRUSHEDCOAL 3500 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">LIMESTONE 4200 L</span></div></div>
+          <div class="flow-meta">300/h · 1,25&nbsp;€/Zyklus · CRUSHEDCOAL nicht selbst produzierbar</div></div>
+        <div class="card-note">Nur EINE der 3 Limestone-Kiln-Varianten passend zu deinem Modsetup platzieren. Rezept 1 (WOODCHIPS) reicht für Selbstversorgung.</div>
+      </div>
+
+      <div class="chain-card" data-search="limestone kiln rgc maps limestonekilnrgc stone woodchips cokingcoal limestone charcoal">
+        <div class="card-head"><h3>Limestone Kiln <span class="tag ok">RGC Maps</span></h3><div class="price">21.000&nbsp;€<small>+50/Tag</small></div></div>
+        <div class="card-sub">limestonekilnRGC.xml — Mod FSM_LimeProduction_Facilities</div>
+        <div class="flow"><div class="flow-label"><span>1) limestone kiln</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">STONE 5500 L</span><span class="chip">WOODCHIPS 3500 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">LIMESTONE 4200 L</span></div></div>
+          <div class="flow-meta">300/h · 1,25&nbsp;€/Zyklus</div></div>
+        <div class="flow"><div class="flow-label"><span>2) limestone kiln 1 <span class="tag alt">ALT</span></span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">STONE 5500 L</span><span class="chip">COKINGCOAL 3500 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">LIMESTONE 4200 L</span></div></div>
+          <div class="flow-meta">300/h · 1,25&nbsp;€/Zyklus · COKINGCOAL nicht selbst produzierbar</div></div>
+        <div class="card-note">Mod-Bug: sellingStation nimmt fälschlich CHARCOAL statt COKINGCOAL an — betrifft nur dieses ungenutzte Alt-Rezept.</div>
+      </div>
+
+      <div class="chain-card" data-search="limestone kiln additional filltypes limestonekilna stone woodchips charcoal limestone">
+        <div class="card-head"><h3>Limestone Kiln <span class="tag ok">Additional Filltypes</span></h3><div class="price">21.000&nbsp;€<small>+50/Tag</small></div></div>
+        <div class="card-sub">limestonekilnA.xml — Mod FSM_LimeProduction_Facilities</div>
+        <div class="flow"><div class="flow-label"><span>1) limestone kiln</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">STONE 5500 L</span><span class="chip">WOODCHIPS 3500 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">LIMESTONE 4200 L</span></div></div>
+          <div class="flow-meta">300/h · 1,25&nbsp;€/Zyklus</div></div>
+        <div class="flow"><div class="flow-label"><span>2) limestone kiln 1 <span class="tag alt">ALT</span></span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">STONE 5500 L</span><span class="chip">CHARCOAL 3500 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">LIMESTONE 4200 L</span></div></div>
+          <div class="flow-meta">300/h · 1,25&nbsp;€/Zyklus · CHARCOAL nicht selbst produzierbar</div></div>
+      </div>
+
+      <div class="chain-card" data-search="rotor crusher lime production rotorcrusherlime limestone lime">
+        <div class="card-head"><h3>Rotor Crusher Lime Production</h3><div class="price">21.000&nbsp;€<small>+50/Tag</small></div></div>
+        <div class="card-sub">rotorCrusherLime.xml — Mod FSM_LimeProduction_Facilities</div>
+        <div class="flow"><div class="flow-label"><span>Rotor Crusher LimeA</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">LIMESTONE 5500 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">LIME 5500 L</span></div></div>
+          <div class="flow-meta">300/h · 1,25&nbsp;€/Zyklus</div></div>
+        <div class="card-note">Letzter Schritt der Lime-Kette — beliefert das Betonwerk. LIMESTONE kommt aus einem Limestone Kiln.</div>
+      </div>
+
+      <div class="chain-card" data-search="concrete plant betonwerk mce concreteplant sand riversandp cement gravel concrete beton">
+        <div class="card-head"><h3>Concrete Plant <span class="tag ok">MCE</span></h3><div class="price">60.000&nbsp;€</div></div>
+        <div class="card-sub">concrete.xml — Mod FS25_MCE_concreteplant</div>
+        <div class="flow"><div class="flow-label"><span>CONCRETE</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">SAND 2000 L</span><span class="chip">RIVERSANDP 1500 L</span><span class="chip">CEMENT 500 L</span><span class="chip">GRAVEL 1500 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">CONCRETE 5500 L</span></div></div>
+          <div class="flow-meta">60/h · 1&nbsp;€/Betriebsstunde · 330.000 L Beton/h</div></div>
+        <div class="card-note">Braucht <b>kein LIME und keinen STONE</b>, dafür RIVERSANDP + CEMENT. CEMENT geht auch als Palette (aus der Zementfabrik US). Bringt eigene CONCRETE-Definition mit — kann mit dem Betonwerk kollidieren.</div>
+      </div>
+
+      <div class="chain-card" data-search="gold washplant goldplant mce gold dirt diesel stone waschanlage">
+        <div class="card-head"><h3>Gold Washplant <span class="tag ok">MCE</span></h3><div class="price">60.000&nbsp;€</div></div>
+        <div class="card-sub">washplant.xml — Mod FS25_MCE_goldplant</div>
+        <div class="flow"><div class="flow-label"><span>GoldWashplant</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">DIRT 10000 L</span><span class="chip">DIESEL 100 L</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">GOLD 200 L</span><span class="chip out">STONE 2000 L</span></div></div>
+          <div class="flow-meta">120/h · 1&nbsp;€/Betriebsstunde · 1.200.000 L DIRT/h · 24.000 L GOLD/h</div></div>
+        <div class="card-note">GOLD kommt als <b>Palette</b> (4.000 L, 7,8&nbsp;€/L). <b>DIESEL muss zugekauft werden.</b> STONE-Lager nur 900&nbsp;L bei 2.000&nbsp;L Output pro Zyklus — Abfuhr per Förderband testen.</div>
+      </div>
+
+    </div>
+
+    <h2 class="group">Mobile Brech-/Siebanlagen &amp; Waschanlage</h2>
+    <p class="group-note">Aus Materialfluss.xlsx — Fahrzeuge statt Gebäude: Durchsatz (l/s) statt Takt, kein Kaufpreis/Kosten pro Zyklus.</p>
+    <div class="grid">
+
+      <div class="chain-card" data-search="c1540 two belts terex brecher rubble crushing sand gravel riversand riversandp gravel crushing">
+        <div class="card-head"><h3>C 1540 Two Belts</h3><div class="price">Fahrzeug</div></div>
+        <div class="card-sub">Terex Brecher</div>
+        <div class="flow"><div class="flow-label"><span>Rubble Crushing</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">RUBBLE</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">SAND 60 %</span><span class="chip out">GRAVEL 40 %</span></div></div>
+          <div class="flow-meta">Durchsatz 1500 l/s</div></div>
+        <div class="flow"><div class="flow-label"><span>RiverSand Screening <span class="tag fix">FIX</span></span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">RIVERSAND</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">RIVERSANDP 80 %</span><span class="chip out">GRAVEL 20 %</span></div></div>
+          <div class="flow-meta">Durchsatz 1500 l/s</div></div>
+        <div class="flow"><div class="flow-label"><span>Gravel Crushing</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">GRAVEL</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">SAND 70 %</span><span class="chip out">GRAVEL 30 %</span></div></div>
+          <div class="flow-meta">Durchsatz 1500 l/s</div></div>
+      </div>
+
+      <div class="chain-card" data-search="c1540 for rgc terex brecher konverter stone_crusher2 stone gravel">
+        <div class="card-head"><h3>C 1540 / For RGC</h3><div class="price">Fahrzeug</div></div>
+        <div class="card-sub">Terex Brecher — Systemkonverter STONE_CRUSHER2</div>
+        <div class="flow"><div class="flow-label"><span>Brechen</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">Bulk (STONE <span class="de">Stein</span>)</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">GRAVEL 100 %</span></div></div>
+          <div class="flow-meta">800 l/s Leerlaufgeschw. · nutzt Konverter, kein eigenes Rezept</div></div>
+      </div>
+
+      <div class="chain-card" data-search="sm 620k doppstadt trommelsieb rubble screening sand gravel riversand riversandp stone dirt">
+        <div class="card-head"><h3>SM 620K</h3><div class="price">Fahrzeug</div></div>
+        <div class="card-sub">Doppstadt Trommelsieb</div>
+        <div class="flow"><div class="flow-label"><span>Rubble Screening</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">RUBBLE</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">SAND 30 %</span><span class="chip out">GRAVEL 70 %</span></div></div>
+          <div class="flow-meta">Durchsatz 1500 l/s</div></div>
+        <div class="flow"><div class="flow-label"><span>RiverSand Screening <span class="tag fix">FIX</span></span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">RIVERSAND</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">RIVERSANDP 60 %</span><span class="chip out">STONE 40 %</span></div></div>
+          <div class="flow-meta">Durchsatz 1500 l/s</div></div>
+        <div class="flow"><div class="flow-label"><span>Dirt Screening</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">DIRT</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">DIRT 60 %</span><span class="chip out">STONE 40 %</span></div></div>
+          <div class="flow-meta">Durchsatz 1500 l/s</div></div>
+      </div>
+
+      <div class="chain-card" data-search="screen 683 terex siebanlage rubble screening sand gravel riversand riversandp stone dirt">
+        <div class="card-head"><h3>Screen 683</h3><div class="price">Fahrzeug</div></div>
+        <div class="card-sub">Terex Siebanlage</div>
+        <div class="flow"><div class="flow-label"><span>Rubble Screening</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">RUBBLE</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">RUBBLE 10 %</span><span class="chip out">SAND 20 %</span><span class="chip out">GRAVEL 70 %</span></div></div>
+          <div class="flow-meta">Durchsatz 1500 l/s</div></div>
+        <div class="flow"><div class="flow-label"><span>RiverSand Screening <span class="tag fix">FIX</span></span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">RIVERSAND</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">STONE 10 %</span><span class="chip out">RIVERSANDP 60 %</span><span class="chip out">GRAVEL 30 %</span></div></div>
+          <div class="flow-meta">Durchsatz 1500 l/s</div></div>
+        <div class="flow"><div class="flow-label"><span>Dirt Screening</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">DIRT</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">STONE 20 %</span><span class="chip out">DIRT 70 %</span><span class="chip out">RUBBLE 10 %</span></div></div>
+          <div class="flow-meta">Durchsatz 1500 l/s</div></div>
+      </div>
+
+      <div class="chain-card" data-search="sluicifer washplant waschanlage dirt paydirt finetailings coarsetailings concentrate roadsalt">
+        <div class="card-head"><h3>Sluicifer Washplant</h3><div class="price">Fahrzeug</div></div>
+        <div class="card-sub">Waschanlage</div>
+        <div class="flow"><div class="flow-label"><span>Dirt-Verarbeitung (Low/Med/High)</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">DIRT</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">FINETAILINGS 2 %</span><span class="chip out">COARSETAILINGS 5,5 %</span><span class="chip out">CONCENTRATE 0,3 %</span><span class="chip out">ROADSALT 90 %</span></div></div>
+          <div class="flow-meta">1200–2400 l/s · 97,8 % Ausbeute, Rest Waschverlust</div></div>
+        <div class="flow"><div class="flow-label"><span>Paydirt (Low Flow)</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">PAYDIRT</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">DIRT 1,6 %</span><span class="chip out">STONE 3,5 %</span><span class="chip out">CONCENTRATE 0,8 %</span><span class="chip out">ROADSALT 89,1 %</span></div></div>
+          <div class="flow-meta">1200 l/s</div></div>
+        <div class="flow"><div class="flow-label"><span>Paydirt (Medium/High Flow)</span></div>
+          <div class="flow-row"><div class="chips"><span class="chip">PAYDIRT</span></div><span class="arrow">→</span><div class="chips"><span class="chip out">FINETAILINGS 1,6 %</span><span class="chip out">COARSETAILINGS 3,5 %</span><span class="chip out">CONCENTRATE 0,8 %</span><span class="chip out">ROADSALT 89,1 %</span></div></div>
+          <div class="flow-meta">1400–2400 l/s</div></div>
+      </div>
+
+    </div>
+    <p class="no-results">Kein Treffer für diese Suche.</p>
+  </section>
+
+  <!-- ============ TAB: LAGER & STATIONEN ============ -->
+  <section class="panel" id="lager">
+    <p class="lede">Was man an jedem Gebäude anliefern kann, wo man die Fertigware abholt, Ladegeschwindigkeit und wichtigste Lagerkapazitäten.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Anlage</th><th>Verkaufsstation nimmt an</th><th>Ladestation gibt aus</th><th class="num">Ladegeschw.</th><th>Lagerkapazität</th></tr></thead>
+        <tbody>
+          <tr><td class="name">Asphaltwerk</td><td>GRAVEL, SAND</td><td>ASPHALT</td><td class="mono num">20.000 l/s</td><td>GRAVEL 5.000.000 L · SAND 2.500.000 L · ASPHALT 5.000.000 L</td></tr>
+          <tr><td class="name">Kiesfabrik</td><td>STONE, GRAVEL_MIXED</td><td>SAND, GRAVEL_MIXED, GRAVEL_COARSE, GRAVEL_FINE</td><td class="mono num">500 l/s</td><td>STONE 72.000 · GRAVEL_MIXED 48.000 · GRAVEL_COARSE/FINE je 28.000 · SAND 25.000</td></tr>
+          <tr><td class="name">Betonwerk</td><td>CONCRETE, STONE, SAND, GRAVEL, LIME</td><td>CONCRETE</td><td class="mono num">20.000 l/s</td><td>CONCRETE 5.000.000 L · STONE/SAND/GRAVEL/LIME je 1.000.000 L</td></tr>
+          <tr><td class="name">Zementfabrik US</td><td class="mat">STONE</td><td>— (Palettenspawner)</td><td class="mono num">—</td><td>STONE 1.000.000 L · CEMENT/ROOFPLATES/CEMENTBRICKS je 200.000 L</td></tr>
+          <tr><td class="name">Rivesand Trommel</td><td>RIVERSAND, WATER</td><td>RIVERSANDP, STONE</td><td class="mono num">je 5.000 l/s</td><td>RIVERSAND 15.000 · RIVERSANDP 10.000 · STONE 10.000 · WATER 4.000</td></tr>
+          <tr><td class="name">Static Trommel</td><td class="mat">SOIL</td><td>STONE, TOPSOIL, POTSOIL, GRAVEL_MIXED</td><td class="mono num">—</td><td>wie Standard-Trommel (siehe XML)</td></tr>
+          <tr><td class="name">Static Trommel Belts A</td><td class="mat">SOIL</td><td>TOPSOIL, POTSOIL, GRAVEL_MIXED</td><td class="mono num">—</td><td>wie Standard-Trommel (siehe XML)</td></tr>
+          <tr><td class="name">Static Trommel Belts F</td><td class="mat">RUBBLE</td><td>SAND, GRAVEL, STONE</td><td class="mono num">—</td><td>RUBBLE 11.000 · SAND/GRAVEL/STONE je 800</td></tr>
+          <tr><td class="name">Materialaufbereitung</td><td>DIRT, IRON, STONE, SAND, GRAVEL, LIMESTONE, LIME</td><td>STONE, SAND, IRON, GRAVEL, LIME (5 Stationen)</td><td class="mono num">je 20.000 l/s</td><td>DIRT/LIMESTONE je 50.000.000 L · IRON/STONE/SAND/GRAVEL je 20.000.000 L · LIME 20.000.000 L</td></tr>
+          <tr><td class="name">Limestone Kiln (alle 3 Varianten)</td><td>STONE, WOODCHIPS + je Variante 1 Kohle-Typ</td><td class="mat">LIMESTONE</td><td class="mono num">5.000 l/s</td><td>STONE 120.000 · LIMESTONE 40.000 · WOODCHIPS 40.000 · Kohle-Typ 40.000</td></tr>
+          <tr><td class="name">Rotor Crusher Lime Production</td><td class="mat">LIMESTONE</td><td class="mat">LIME</td><td class="mono num">5.000 l/s</td><td>LIMESTONE 25.000 · LIME 4.000</td></tr>
+                  <tr><td class="name">Concrete Plant</td><td>CEMENT (auch Palette), GRAVEL, SAND, RIVERSANDP</td><td>CONCRETE</td><td class="mono num">2.500 l/s</td><td>je Material 100.000 L</td></tr>
+          <tr><td class="name">Gold Washplant</td><td>DIRT, DIESEL</td><td>GOLD (Palette), STONE (Förderband)</td><td class="mono num">Pallets 200 l/s</td><td>DIRT 1.500.000 · DIESEL 50.000 · GOLD 12.000 · STONE 900</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ TAB: BEDARFSDECKUNG ============ -->
+  <section class="panel" id="bedarf">
+    <p class="lede">Deckt die Materialfluss-Kette (Mining-Maschinen) jeden benötigten Input — oder muss zugekauft werden?</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Produktionskette</th><th>Input</th><th>Status</th><th>Quelle / Begründung</th></tr></thead>
+        <tbody>
+          <tr><td class="name">Asphaltwerk</td><td class="mat">GRAVEL</td><td><span class="pill ok">Selbstversorgt</span></td><td>Output von C 1540 Two Belts, SM 620K, Screen 683, C 1540/For RGC (Konverter)</td></tr>
+          <tr><td class="name">Asphaltwerk</td><td class="mat">SAND</td><td><span class="pill ok">Selbstversorgt</span></td><td>Output von C 1540 Two Belts, SM 620K, Screen 683</td></tr>
+          <tr><td class="name">Kiesfabrik</td><td class="mat">STONE</td><td><span class="pill ok">Selbstversorgt</span></td><td>Output von C 1540/For RGC (Konverter), SM 620K, Screen 683</td></tr>
+          <tr><td class="name">Betonwerk</td><td class="mat">SAND</td><td><span class="pill ok">Selbstversorgt</span></td><td>s. Asphaltwerk</td></tr>
+          <tr><td class="name">Betonwerk</td><td class="mat">GRAVEL</td><td><span class="pill ok">Selbstversorgt</span></td><td>s. Asphaltwerk</td></tr>
+          <tr><td class="name">Betonwerk</td><td class="mat">STONE</td><td><span class="pill ok">Selbstversorgt</span></td><td>s. Kiesfabrik</td></tr>
+          <tr><td class="name">Betonwerk</td><td class="mat">LIME</td><td><span class="pill ok">Selbstversorgt</span></td><td>Rotor Crusher Lime Production wandelt LIMESTONE → LIME um</td></tr>
+          <tr><td class="name">Zementfabrik US</td><td class="mat">STONE</td><td><span class="pill ok">Selbstversorgt</span></td><td>s. Kiesfabrik</td></tr>
+          <tr><td class="name">Rivesand Trommel</td><td class="mat">RIVERSAND</td><td><span class="pill ok">Selbstversorgt</span></td><td>Roh gebaggertes Ausgangsmaterial — kein Kauf nötig</td></tr>
+          <tr><td class="name">Rivesand Trommel</td><td class="mat">WATER</td><td><span class="pill ok">Selbstversorgt</span></td><td>Frei verfügbar über Wasserquelle/-fass</td></tr>
+          <tr><td class="name">Static Trommel</td><td class="mat">SOIL</td><td><span class="pill ok">Selbstversorgt</span></td><td>Über TerraFarm aus dem Terrain gewinnbar (wie RUBBLE/RIVERSAND/DIRT)</td></tr>
+          <tr><td class="name">Static Trommel Belts A</td><td class="mat">SOIL</td><td><span class="pill ok">Selbstversorgt</span></td><td>s. Static Trommel</td></tr>
+          <tr><td class="name">Static Trommel Belts F</td><td class="mat">RUBBLE</td><td><span class="pill ok">Selbstversorgt</span></td><td>Roh gebaggert; Nebenprodukt von Screen 683</td></tr>
+          <tr><td class="name">Materialaufbereitung</td><td class="mat">DIRT</td><td><span class="pill ok">Selbstversorgt</span></td><td>Roh gebaggert; Nebenprodukt von SM 620K / Screen 683</td></tr>
+          <tr><td class="name">Materialaufbereitung</td><td class="mat">LIMESTONE</td><td><span class="pill ok">Selbstversorgt</span></td><td>Limestone Kiln (Rezept 1) erzeugt LIMESTONE aus STONE + WOODCHIPS</td></tr>
+          <tr><td class="name">Limestone Kiln (alle 3 Varianten)</td><td class="mat">STONE</td><td><span class="pill ok">Selbstversorgt</span></td><td>s. Kiesfabrik</td></tr>
+          <tr><td class="name">Limestone Kiln (alle 3 Varianten)</td><td class="mat">WOODCHIPS</td><td><span class="pill ok">Selbstversorgt</span></td><td>Output von Doppstadt AK 640K (Baumhäcksler)</td></tr>
+          <tr><td class="name">Rotor Crusher Lime Production</td><td class="mat">LIMESTONE</td><td><span class="pill ok">Selbstversorgt</span></td><td>Output des Limestone Kiln (Rezept 1)</td></tr>
+                  <tr><td class="name">Concrete Plant</td><td class="mat">SAND</td><td><span class="pill ok">Selbstversorgt</span></td><td>s. Asphaltwerk</td></tr>
+          <tr><td class="name">Concrete Plant</td><td class="mat">GRAVEL</td><td><span class="pill ok">Selbstversorgt</span></td><td>s. Asphaltwerk</td></tr>
+          <tr><td class="name">Concrete Plant</td><td class="mat">RIVERSANDP</td><td><span class="pill ok">Selbstversorgt</span></td><td>Output der Rivesand Trommel, C 1540 Two Belts, SM 620K, Screen 683</td></tr>
+          <tr><td class="name">Concrete Plant</td><td class="mat">CEMENT</td><td><span class="pill ok">Selbstversorgt</span></td><td>Zementfabrik US (Rezept cementBags) — als Palette liefern</td></tr>
+          <tr><td class="name">Gold Washplant</td><td class="mat">DIRT</td><td><span class="pill ok">Selbstversorgt</span></td><td>Roh gebaggert; Nebenprodukt von SM 620K / Screen 683</td></tr>
+          <tr><td class="name">Gold Washplant</td><td class="mat">DIESEL</td><td><span class="pill warn">Zukauf nötig</span></td><td>Wird in keiner Kette hergestellt — Tankstelle/Zukauf</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="summary-box">
+      <b>Ergebnis:</b> 10 von 11 Produktionsketten sind zu 100&nbsp;% selbstversorgt; einzige Ausnahme ist die Gold Washplant, die DIESEL braucht (Zukauf). Die übrigen 10 Ketten sind selbstversorgt (Materialfluss-Kette + TerraFarm-Terrain-Abbau). Die letzte Lücke (LIME/LIMESTONE) wurde durch Limestone Kiln + Rotor Crusher Lime Production geschlossen: STONE + WOODCHIPS → LIMESTONE → LIME. Kein einziger Rohstoff muss mehr zugekauft werden — solange immer Rezept 1 (WOODCHIPS-Variante) der Limestone Kilns genutzt wird, nicht das Kohle-Alternativrezept.
+    </div>
+  </section>
+
+  <!-- ============ TAB: HINWEISE ============ -->
+  <section class="panel" id="hinweise">
+    <dl class="notes">
+      <div class="note"><dt>RIVERSAND / RIVERSANDP</dt><dd>Beide waren in keinem installierten Mod als Filltype registriert. Über den eigenen Kompatibilitäts-Mod FS25_RGC_FillTypeFix nachgetragen (Filltype-Definition, Kategorien, Bodenschüttung/densityMapHeightType). Die Rivesand-Trommel läuft dadurch jetzt.</dd></div>
+      <div class="note"><dt>RUBBLE</dt><dd>War ebenfalls nirgends registriert, betrifft u.&nbsp;a. „Static Trommel Belts F" (Input) — über denselben Fix-Mod gelöst.</dd></div>
+      <div class="note"><dt>FSM_RecyclingFacilities_FS25</dt><dd>Enthält riverSandTrimmel.xml, trommelStatic.xml, trommelStatic_BeltsA/F.xml SELBST, inkl. der Lua-Klasse HeapLoadTrigger. Keine externen &lt;dependency&gt;-Einträge in der modDesc.xml — diese vier Gebäude sind in sich geschlossen, solange dieser eine Mod installiert ist.</dd></div>
+      <div class="note"><dt>trommelStatic / BeltsA</dt><dd>Modtitel warnt selbst: „WORKS ONLY WITH ADDITIONAL FILLTYPES“. Benötigen SOIL, TOPSOIL, POTSOIL aus FS25_AdditionalFilltypes — ist installiert, daher unkritisch.</dd></div>
+      <div class="note"><dt>Zementfabrik US</dt><dd>Vanilla-Gebäude von der US-Karte (kein FSM-Mod). Keine loadingStation — CEMENT/ROOFPLATES/CEMENTBRICKS werden über einen PalletSpawner als Paletten ausgegeben.</dd></div>
+      <div class="note"><dt>Mehrfach definierte Filltypes</dt><dd>DIRT, GRAVEL, SAND, STONE u.&nbsp;a. werden von mehreren Mods (RGC_Productions, AdditionalFilltypes, Construction_Pack) mit unterschiedlichen Preisen/Gewichten definiert — welche Version greift, hängt von der Mod-Ladereihenfolge ab (nicht weiter geprüft).</dd></div>
+      <div class="note"><dt>BuyFactor</dt><dd>Wo „BF“ angegeben ist, kann der Input auch direkt zugekauft statt nur angeliefert werden — der Faktor bestimmt den Aufpreis gegenüber dem Marktpreis.</dd></div>
+      <div class="note"><dt>SOIL (Static Trommel / Belts A)</dt><dd>Lässt sich über TerraFarm direkt aus dem Terrain gewinnen, genau wie RUBBLE/RIVERSAND/DIRT — kein Zukauf nötig.</dd></div>
+      <div class="note"><dt>LIME / LIMESTONE — gelöst</dt><dd>Über 3 Limestone-Kiln-Varianten (F/RGC/A — je nach Map/Modsetup, nur eine platzieren) plus Rotor Crusher Lime Production: STONE + WOODCHIPS → LIMESTONE → LIME. Beide Rohstoffe sind selbst produzierbar, kein Zukauf mehr nötig.</dd></div>
+      <div class="note"><dt>Limestone Kiln — 3 Varianten</dt><dd>F = Filltypes For All, RGC = RGC Maps, A = Additional Filltypes. Alle drei sind funktional identisch (Rezept 1: STONE+WOODCHIPS → LIMESTONE) und unterscheiden sich nur im optionalen Kohle-Alternativrezept — nur EINE Variante passend zum eigenen Modsetup/Karte platzieren.</dd></div>
+      <div class="note"><dt>limestonekilnRGC.xml — Mod-Inkonsistenz</dt><dd>sellingStation akzeptiert laut XML fälschlich CHARCOAL als Input, das Rezept selbst benötigt aber COKINGCOAL. Betrifft nur das ohnehin nicht benötigte Alternativrezept 2 — kein Problem, solange Rezept 1 genutzt wird.</dd></div>
+      <div class="note"><dt>Concrete Plant (MCE)</dt><dd>Eigenes Rezept ohne LIME/STONE: SAND + RIVERSANDP + CEMENT + GRAVEL → CONCRETE. CEMENT lässt sich auch als Palette anliefern. Mod definiert CONCRETE neu — Preis/Gewicht hängen von der Mod-Ladereihenfolge ab.</dd></div>
+      <div class="note"><dt>Gold Washplant (MCE)</dt><dd>DIRT + DIESEL → GOLD + STONE. GOLD wird nur als Palette (4.000 L) ausgegeben. STONE-Lager (900 L) ist kleiner als der Output pro Zyklus (2.000 L) — sicherstellen, dass das Förderband Stein abführt, sonst stoppt die Produktion.</dd></div>
+    </dl>
+  </section>
+
+</main>
+
+<footer>Zusammengestellt aus den Mod-XMLs · FS25_RGC_FillTypeFix aktiv · Server-Update erforderlich für diesen Mod</footer>
+
+<script>
+  (function () {
+    var DE = {
+      GRAVEL: 'Kies', SAND: 'Sand', ASPHALT: 'Asphalt', STONE: 'Stein',
+      GRAVEL_MIXED: 'Kies, gemischt', GRAVEL_COARSE: 'Kies, grob', GRAVEL_FINE: 'Kies, fein',
+      LIME: 'Kalk', CONCRETE: 'Beton', CEMENT: 'Zement', ROOFPLATES: 'Dachplatten', CEMENTBRICKS: 'Zementsteine',
+      RIVERSAND: 'Flusssand', WATER: 'Wasser', RIVERSANDP: 'Flusssand, aufbereitet',
+      SOIL: 'Erde', TOPSOIL: 'Mutterboden', POTSOIL: 'Blumenerde',
+      RUBBLE: 'Schutt', DIRT: 'Erdaushub', IRON: 'Eisen',
+      LIMESTONE: 'Kalkstein', WOODCHIPS: 'Hackschnitzel', CRUSHEDCOAL: 'Kohlegrus', COKINGCOAL: 'Kokskohle', CHARCOAL: 'Holzkohle',
+      DIESEL: 'Diesel', GOLD: 'Gold', FINETAILINGS: 'Feinrückstände', COARSETAILINGS: 'Grobrückstände', CONCENTRATE: 'Konzentrat', ROADSALT: 'Streusalz', PAYDIRT: 'Waschgut'
+    };
+    function annotate(el) {
+      var text = el.textContent;
+      var m = text.match(/^([A-Z][A-Z0-9_]*)/);
+      if (!m || !DE[m[1]]) return;
+      var rest = text.slice(m[1].length);
+      el.innerHTML = m[1] + ' <span class="de">(' + DE[m[1]] + ')</span>' + rest;
+    }
+    document.querySelectorAll('.chip, td.mat').forEach(annotate);
+
+    var tabs = document.querySelectorAll('.tab-btn');
+    var panels = document.querySelectorAll('.panel');
+    tabs.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        tabs.forEach(function (b) { b.setAttribute('aria-selected', 'false'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        btn.setAttribute('aria-selected', 'true');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    var search = document.getElementById('search');
+    var cards = document.querySelectorAll('.chain-card');
+    var noResults = document.querySelector('.no-results');
+    search.addEventListener('input', function () {
+      var q = search.value.trim().toLowerCase();
+      var visibleCount = 0;
+      cards.forEach(function (card) {
+        var hit = !q || (card.dataset.search || '').includes(q) || card.textContent.toLowerCase().includes(q);
+        card.classList.toggle('dimmed', !hit);
+        if (hit) visibleCount++;
+      });
+      noResults.style.display = (q && visibleCount === 0) ? 'block' : 'none';
+    });
+  })();
+</script>
+
+</body>
+</html>
