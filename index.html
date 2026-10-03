@@ -546,8 +546,9 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
     </section>
 
     <section class="panel" id="ko-antraege">
-      <p class="lead">Alle Antr&auml;ge, die du bei Rathaus, Polizei, Feuerwehr oder Bauordnungsamt
-      unter deinem Charakternamen gestellt hast &mdash; der Status aktualisiert sich automatisch.</p>
+      <p class="lead">Alles, worauf du gerade wartest &mdash; Antr&auml;ge bei Rathaus, Polizei,
+      Feuerwehr oder Bauordnungsamt und Anfragen bei Cornerstone Aggregate Co., jeweils unter
+      deinem Charakternamen. Der Status aktualisiert sich automatisch.</p>
       <div class="tools" style="margin-bottom:10px">
         <button class="act ghost" id="ko-an-reload" type="button">Aktualisieren</button>
       </div>
@@ -1633,7 +1634,7 @@ function pfPollingStarten(){
   }, PF_POLL_MS);
 }
 function koAntraegeKarteHtml(a){
-  return '<div class="karte" data-id="'+a.id+'">'+
+  return '<div class="karte" data-typ="amt" data-id="'+a.id+'">'+
     '<div class="karte-kopf"><span class="anr">'+escHtml(a.amt)+' &mdash; '+escHtml(a.betreff || a.kategorie)+'</span>'+
     statusPilleHtml(a.status)+'</div>'+
     '<dl>'+
@@ -1646,17 +1647,45 @@ function koAntraegeKarteHtml(a){
     '<div class="status ko-an-karte-status" role="status" aria-live="polite"></div>'+
   '</div>';
 }
+function koAnfrageKarteHtml(a){
+  return '<div class="karte" data-typ="cornerstone">'+
+    '<div class="karte-kopf"><span class="anr">Cornerstone Aggregate Co. &mdash; '+escHtml(a.art || a.nummer)+'</span>'+
+    '<span class="badge-status '+statusKlasse(a.status)+'">'+escHtml(a.status||'Neu')+'</span></div>'+
+    '<dl>'+
+      '<div><dt>Baustelle</dt><dd>'+escHtml(a.baustelle||'—')+'</dd></div>'+
+      '<div><dt>Eingegangen</dt><dd>'+escHtml(a.eingang||'')+'</dd></div>'+
+      '<div><dt>Auftragsnummer</dt><dd>'+escHtml(a.nummer)+'</dd></div>'+
+    '</dl>'+
+    (a.info?'<div class="beschreibung"><b>Info von der Bauleitung:</b> '+escHtml(a.info)+'</div>':'')+
+  '</div>';
+}
+// Wandelt "TT.MM.JJJJ, HH:mm" bzw. "TT.MM.JJJJ HH:mm[:ss]" in einen vergleichbaren
+// Zeitstempel um, damit Anträge und Anfragen zusammen chronologisch sortiert werden können.
+function koZeitstempel(str){
+  var m = /(\d{2})\.(\d{2})\.(\d{4})\D+(\d{2}):(\d{2})/.exec(str || '');
+  if(!m) return 0;
+  return new Date(+m[3], +m[2]-1, +m[1], +m[4], +m[5]).getTime();
+}
 function koAntraegeLaden(){
   if(scriptFehlt() || !AKTIVER_SPIELER.name) return;
   setStatus('ko-an-status','Wird geladen …');
-  post({ aktion:'antraege_meine_spieler', name:AKTIVER_SPIELER.name, passwort:AKTIVER_SPIELER.passwort }).then(function(res){
-    if(!res.ok){ setStatus('ko-an-status','Fehler beim Laden.', 'err'); return; }
+  Promise.all([
+    post({ aktion:'antraege_meine_spieler', name:AKTIVER_SPIELER.name, passwort:AKTIVER_SPIELER.passwort }),
+    get('?aktion=meine&name=' + encodeURIComponent(AKTIVER_SPIELER.name)).catch(function(){ return { ok:false }; })
+  ]).then(function(ergebnisse){
+    var antraegeRes = ergebnisse[0], anfragenRes = ergebnisse[1];
+    if(!antraegeRes.ok){ setStatus('ko-an-status','Fehler beim Laden.', 'err'); return; }
     setStatus('ko-an-status','','');
-    var liste = (res.daten || []).slice().reverse();
+    var eintraege = (antraegeRes.daten || []).map(function(a){
+      return { sortier: koZeitstempel(a.eingegangen), html: koAntraegeKarteHtml(a) };
+    }).concat((anfragenRes.ok ? (anfragenRes.daten || []) : []).map(function(a){
+      return { sortier: koZeitstempel(a.eingang), html: koAnfrageKarteHtml(a) };
+    }));
+    eintraege.sort(function(x,y){ return y.sortier - x.sortier; });
     var el = document.getElementById('ko-an-liste');
-    el.innerHTML = liste.length ? liste.map(koAntraegeKarteHtml).join('') :
-      '<p class="leer">Noch keine Anträge gestellt.</p>';
-    el.querySelectorAll('.karte').forEach(function(karte){
+    el.innerHTML = eintraege.length ? eintraege.map(function(e){ return e.html; }).join('') :
+      '<p class="leer">Noch keine Anträge oder Anfragen gestellt.</p>';
+    el.querySelectorAll('.karte[data-typ="amt"]').forEach(function(karte){
       karte.querySelector('.ko-an-loeschen').addEventListener('click', function(){
         if(!confirm('Diesen Antrag wirklich zurückziehen/löschen?')) return;
         var txt = karte.querySelector('.ko-an-karte-status');
