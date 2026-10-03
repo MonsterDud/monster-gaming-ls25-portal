@@ -1613,14 +1613,53 @@ function nacheinander(aufgabe){
   return ergebnis;
 }
 // Schickt dieselben Daten stattdessen per GET (alles im Query-String
-// verpackt). Google Apps Script liefert bei GET-Antworten in dieser Server-
-// Konfiguration bisher immer saubere CORS-Header zurück — bei POST kam es
-// wiederholt (auch nach Neustellung, neuem Deployment, anderem Gerät/Netz)
-// zu einer Antwort ganz ohne CORS-Header. Deshalb hier als letzte Rettung.
+// verpackt). Hat lange als zuverlässiger Fallback funktioniert, zeigt aber
+// inzwischen ebenfalls gelegentlich denselben CORS-Fehler wie POST — das ist
+// offenbar kein POST-spezifisches Problem, sondern eine generelle Apps-
+// Script-Eigenart beim Ausliefern der Antwort über die Google-Weiterleitung,
+// vor allem bei Aktionen, die wirklich in die Tabelle schreiben.
 function postUeberGet(daten){
   var url = SCRIPT_URL + '?aktion=' + encodeURIComponent(daten.aktion || '') +
     '&daten=' + encodeURIComponent(JSON.stringify(daten)) + '&_=' + Date.now();
   return fetch(url, { cache:'no-store' }).then(function(r){ return r.json(); });
+}
+// Letzte, wirklich zuverlässige Stufe: JSONP über ein <script>-Tag statt
+// fetch(). Ein <script src="..."> unterliegt nie der CORS-Prüfung des
+// Browsers (genau wie ein <img>) — damit ist es egal, ob Google bei dieser
+// Antwort einen CORS-Header mitschickt oder nicht.
+function postUeberJsonp(daten){
+  return new Promise(function(resolve, reject){
+    var fertig = false;
+    var cbName = 'pf_jsonp_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+    var script = document.createElement('script');
+    function aufraeumen(){
+      delete window[cbName];
+      if(script.parentNode) script.parentNode.removeChild(script);
+    }
+    window[cbName] = function(ergebnis){
+      if(fertig) return;
+      fertig = true;
+      aufraeumen();
+      resolve(ergebnis);
+    };
+    script.onerror = function(){
+      if(fertig) return;
+      fertig = true;
+      aufraeumen();
+      reject(new Error('JSONP-Anfrage fehlgeschlagen.'));
+    };
+    var url = SCRIPT_URL + '?aktion=' + encodeURIComponent(daten.aktion || '') +
+      '&daten=' + encodeURIComponent(JSON.stringify(daten)) +
+      '&callback=' + cbName + '&_=' + Date.now();
+    script.src = url;
+    document.head.appendChild(script);
+    setTimeout(function(){
+      if(fertig) return;
+      fertig = true;
+      aufraeumen();
+      reject(new Error('Zeitüberschreitung (JSONP) — der Server hat zu lange nicht geantwortet.'));
+    }, 20000);
+  });
 }
 function post(daten){
   return nacheinander(function(){
@@ -1634,8 +1673,9 @@ function post(daten){
           body: JSON.stringify(daten)
         }).then(function(r){ return r.json() });
       });
-    }).catch(function(fehler){
-      return mitTimeout(function(){ return postUeberGet(daten); });
+    }).catch(function(){
+      return mitTimeout(function(){ return postUeberGet(daten); })
+        .catch(function(){ return postUeberJsonp(daten); });
     });
   });
 }
