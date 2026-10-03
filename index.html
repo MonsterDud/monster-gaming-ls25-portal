@@ -759,9 +759,9 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
   <div class="tabs">
     <button class="tab aktiv" data-panel="c-neu" type="button">Neue Anfrage</button>
     <button class="tab" data-panel="c-meine" type="button">Meine Anfragen</button>
-    <button class="tab" data-panel="c-admin" type="button">Bauleitung</button>
+    <button class="tab" id="cs-tab-admin" data-panel="c-admin" type="button" style="display:none">Bauleitung</button>
     <button class="tab" data-panel="c-preis" type="button">Preisliste</button>
-    <button class="tab" data-panel="c-rechnung" type="button">Rechnung</button>
+    <button class="tab" id="cs-tab-rechnung" data-panel="c-rechnung" type="button" style="display:none">Rechnung</button>
   </div>
 
   <!-- Neue Anfrage -->
@@ -1598,10 +1598,12 @@ function kontoAnzeigen(){
   cornerstoneStatusLaden();
   pfPosteingangLaden();
   koAntraegeLaden();
+  csTabsAktualisieren();
   pfPollingStarten();
 }
 function kontoAbmelden(){
   pfPollingStoppen();
+  csTabsSetzen(false);
   AKTIVER_SPIELER = { name:'', passwort:'' };
   localDel('mg_name');
   document.getElementById('konto-eingeloggt').style.display = 'none';
@@ -2208,6 +2210,26 @@ function cornerstoneStatusLaden(){
     if(!res.ok) return;
     document.getElementById('cs-uebernehmen-box').style.display = res.vergeben ? 'none' : 'block';
   });
+}
+function csTabsAktualisieren(){
+  var zeigen = false;
+  if(!AKTIVER_SPIELER.name){ csTabsSetzen(false); return; }
+  if(scriptFehlt()) return;
+  get('?aktion=cornerstone_mein_zugriff&name='+encodeURIComponent(AKTIVER_SPIELER.name)+'&passwort='+encodeURIComponent(AKTIVER_SPIELER.passwort)).then(function(res){
+    csTabsSetzen(!!(res.ok && res.zugriff));
+  }).catch(function(){ csTabsSetzen(false); });
+}
+function csTabsSetzen(zeigen){
+  document.getElementById('cs-tab-admin').style.display = zeigen ? '' : 'none';
+  document.getElementById('cs-tab-rechnung').style.display = zeigen ? '' : 'none';
+  if(!zeigen){
+    ['c-admin','c-rechnung'].forEach(function(panel){
+      var btn = document.querySelector('[data-panel="'+panel+'"]');
+      var sec = document.getElementById(panel);
+      if(btn) btn.classList.remove('aktiv');
+      if(sec) sec.classList.remove('aktiv');
+    });
+  }
 }
 document.getElementById('cs-uebernehmen-btn').addEventListener('click', function(){
   if(!AKTIVER_SPIELER.name){ setStatus('cs-uebernehmen-status','Bitte zuerst unter „Mein Konto“ anmelden.', 'err'); return; }
