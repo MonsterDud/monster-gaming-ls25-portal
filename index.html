@@ -1115,6 +1115,7 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
 
     <div class="tabs">
       <button class="tab aktiv" data-panel="ra-neu" type="button">Antrag stellen</button>
+      <button class="tab" data-panel="ra-check" type="button">Status pr&uuml;fen</button>
       <button class="tab" data-panel="ra-admin" type="button">Bearbeiten</button>
     </div>
 
@@ -1138,6 +1139,20 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
       </div>
       <div class="tools"><button class="act" id="ra-absenden" type="button">Antrag absenden</button></div>
       <div class="status" id="ra-status" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="panel" id="ra-check">
+      <p class="lead">Antragsnummer und Handynummer eingeben, um den aktuellen Status deines Antrags zu sehen.
+      Die Antragsnummer bekommst du direkt nach dem Absenden angezeigt.</p>
+      <div class="meta">
+        <div class="fld"><label for="ra-ck-id">Antragsnummer</label>
+          <input id="ra-ck-id" placeholder="z. B. A12"></div>
+        <div class="fld"><label for="ra-ck-handy">Handynummer im Spiel</label>
+          <input id="ra-ck-handy" placeholder="z. B. 502847"></div>
+      </div>
+      <div class="tools"><button class="act" id="ra-ck-btn" type="button">Status pr&uuml;fen</button></div>
+      <div class="status" id="ra-ck-status" role="status" aria-live="polite"></div>
+      <div id="ra-ck-ergebnis" style="margin-top:14px"></div>
     </section>
 
     <section class="panel" id="ra-admin">
@@ -1167,6 +1182,7 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
 
     <div class="tabs">
       <button class="tab aktiv" data-panel="po-neu" type="button">Antrag stellen</button>
+      <button class="tab" data-panel="po-check" type="button">Status pr&uuml;fen</button>
       <button class="tab" data-panel="po-admin" type="button">Bearbeiten</button>
     </div>
 
@@ -1188,6 +1204,20 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
       </div>
       <div class="tools"><button class="act" id="po-absenden" type="button">Antrag absenden</button></div>
       <div class="status" id="po-status" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="panel" id="po-check">
+      <p class="lead">Antragsnummer und Handynummer eingeben, um den aktuellen Status deines Antrags zu sehen.
+      Die Antragsnummer bekommst du direkt nach dem Absenden angezeigt.</p>
+      <div class="meta">
+        <div class="fld"><label for="po-ck-id">Antragsnummer</label>
+          <input id="po-ck-id" placeholder="z. B. A12"></div>
+        <div class="fld"><label for="po-ck-handy">Handynummer im Spiel</label>
+          <input id="po-ck-handy" placeholder="z. B. 502847"></div>
+      </div>
+      <div class="tools"><button class="act" id="po-ck-btn" type="button">Status pr&uuml;fen</button></div>
+      <div class="status" id="po-ck-status" role="status" aria-live="polite"></div>
+      <div id="po-ck-ergebnis" style="margin-top:14px"></div>
     </section>
 
     <section class="panel" id="po-admin">
@@ -1217,6 +1247,7 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
 
     <div class="tabs">
       <button class="tab aktiv" data-panel="fw-neu" type="button">Ehrenamt melden</button>
+      <button class="tab" data-panel="fw-check" type="button">Status pr&uuml;fen</button>
       <button class="tab" data-panel="fw-admin" type="button">Bearbeiten</button>
     </div>
 
@@ -1231,6 +1262,20 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
       </div>
       <div class="tools"><button class="act" id="fw-absenden" type="button">Als Ehrenamt melden</button></div>
       <div class="status" id="fw-status" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="panel" id="fw-check">
+      <p class="lead">Antragsnummer und Handynummer eingeben, um den aktuellen Status deiner Meldung zu sehen.
+      Die Antragsnummer bekommst du direkt nach dem Absenden angezeigt.</p>
+      <div class="meta">
+        <div class="fld"><label for="fw-ck-id">Antragsnummer</label>
+          <input id="fw-ck-id" placeholder="z. B. A12"></div>
+        <div class="fld"><label for="fw-ck-handy">Handynummer im Spiel</label>
+          <input id="fw-ck-handy" placeholder="z. B. 502847"></div>
+      </div>
+      <div class="tools"><button class="act" id="fw-ck-btn" type="button">Status pr&uuml;fen</button></div>
+      <div class="status" id="fw-ck-status" role="status" aria-live="polite"></div>
+      <div id="fw-ck-ergebnis" style="margin-top:14px"></div>
     </section>
 
     <section class="panel" id="fw-admin">
@@ -1260,6 +1305,7 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
 
     <div class="tabs">
       <button class="tab aktiv" data-panel="ba-neu" type="button">Bauantrag stellen</button>
+      <button class="tab" data-panel="ba-check" type="button">Status pr&uuml;fen</button>
       <button class="tab" data-panel="ba-admin" type="button">Bearbeiten</button>
     </div>
 
@@ -1283,6 +1329,20 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
       </div>
       <div class="tools"><button class="act" id="ba-absenden" type="button">Bauantrag absenden</button></div>
       <div class="status" id="ba-status" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="panel" id="ba-check">
+      <p class="lead">Antragsnummer und Handynummer eingeben, um den aktuellen Status deines Bauantrags zu sehen.
+      Die Antragsnummer bekommst du direkt nach dem Absenden angezeigt.</p>
+      <div class="meta">
+        <div class="fld"><label for="ba-ck-id">Antragsnummer</label>
+          <input id="ba-ck-id" placeholder="z. B. A12"></div>
+        <div class="fld"><label for="ba-ck-handy">Handynummer im Spiel</label>
+          <input id="ba-ck-handy" placeholder="z. B. 502847"></div>
+      </div>
+      <div class="tools"><button class="act" id="ba-ck-btn" type="button">Status pr&uuml;fen</button></div>
+      <div class="status" id="ba-ck-status" role="status" aria-live="polite"></div>
+      <div id="ba-ck-ergebnis" style="margin-top:14px"></div>
     </section>
 
     <section class="panel" id="ba-admin">
@@ -2148,13 +2208,38 @@ function erstelleAmtBereich(cfg){
       beschreibung:beschreibung
     }).then(function(res){
       if(res.ok){
-        setStatus(cfg.formStatusId,'Gesendet — danke!', 'ok');
+        setStatus(cfg.formStatusId,'Gesendet — danke! Deine Antragsnummer: '+res.id+' (unter „Status prüfen" mit deiner Handynummer abrufbar).', 'ok');
         document.getElementById(cfg.neuNameId).value = '';
         document.getElementById(cfg.neuHandyId).value = '';
         if(cfg.neuBetreffId) document.getElementById(cfg.neuBetreffId).value = '';
         document.getElementById(cfg.neuBeschreibungId).value = '';
       } else setStatus(cfg.formStatusId,'Fehler beim Senden.', 'err');
     }).catch(function(){ setStatus(cfg.formStatusId,'Fehler beim Senden.', 'err'); });
+  });
+
+  enterZumKlicken(cfg.ckIdId, cfg.ckBtnId);
+  enterZumKlicken(cfg.ckHandyId, cfg.ckBtnId);
+  document.getElementById(cfg.ckBtnId).addEventListener('click', function(){
+    var id = document.getElementById(cfg.ckIdId).value.trim();
+    var handy = document.getElementById(cfg.ckHandyId).value.trim();
+    var ergebnisEl = document.getElementById(cfg.ckErgebnisId);
+    ergebnisEl.innerHTML = '';
+    if(!id || !handy){ setStatus(cfg.ckStatusId,'Bitte Antragsnummer und Handynummer eingeben.', 'err'); return; }
+    if(scriptFehlt()){ setStatus(cfg.ckStatusId,'Es ist noch keine Web-App-Adresse hinterlegt.', 'err'); return; }
+    setStatus(cfg.ckStatusId,'Wird geprüft …');
+    get('?aktion=antrag_status_abfrage&id=' + encodeURIComponent(id) + '&handy=' + encodeURIComponent(handy)).then(function(res){
+      if(!res.ok){ setStatus(cfg.ckStatusId,'Keinen passenden Antrag gefunden — Antragsnummer und Handynummer prüfen.', 'err'); return; }
+      setStatus(cfg.ckStatusId,'','');
+      ergebnisEl.innerHTML =
+        '<div class="karte">'+
+          '<div class="karte-kopf"><span class="anr">'+escHtml(res.betreff || res.kategorie)+'</span>'+
+          '<span class="badge-typ">'+escHtml(res.kategorie)+'</span></div>'+
+          '<dl>'+
+            '<div><dt>Status</dt><dd><strong>'+escHtml(res.status)+'</strong></dd></div>'+
+            '<div><dt>Eingegangen</dt><dd>'+escHtml(res.eingegangen)+'</dd></div>'+
+          '</dl>'+
+        '</div>';
+    }).catch(function(){ setStatus(cfg.ckStatusId,'Fehler bei der Abfrage.', 'err'); });
   });
 
   function renderListe(liste){
@@ -2211,6 +2296,7 @@ erstelleAmtBereich({
   neuKategorieId:'ra-kategorie', fixKategorie:null,
   neuNameId:'ra-name', neuHandyId:'ra-handy', neuBetreffId:'ra-betreff', neuBeschreibungId:'ra-beschreibung',
   absendenBtnId:'ra-absenden', formStatusId:'ra-status',
+  ckIdId:'ra-ck-id', ckHandyId:'ra-ck-handy', ckBtnId:'ra-ck-btn', ckStatusId:'ra-ck-status', ckErgebnisId:'ra-ck-ergebnis',
   codeId:'ra-code', loginBtnId:'ra-login-btn', gateId:'ra-gate', bereichId:'ra-bereich',
   gateStatusId:'ra-gate-status', listeId:'ra-liste', reloadBtnId:'ra-reload', logoutBtnId:'ra-logout'
 });
@@ -2219,6 +2305,7 @@ erstelleAmtBereich({
   neuKategorieId:'po-kategorie', fixKategorie:null,
   neuNameId:'po-name', neuHandyId:'po-handy', neuBetreffId:'po-betreff', neuBeschreibungId:'po-beschreibung',
   absendenBtnId:'po-absenden', formStatusId:'po-status',
+  ckIdId:'po-ck-id', ckHandyId:'po-ck-handy', ckBtnId:'po-ck-btn', ckStatusId:'po-ck-status', ckErgebnisId:'po-ck-ergebnis',
   codeId:'po-code', loginBtnId:'po-login-btn', gateId:'po-gate', bereichId:'po-bereich',
   gateStatusId:'po-gate-status', listeId:'po-liste', reloadBtnId:'po-reload', logoutBtnId:'po-logout'
 });
@@ -2227,6 +2314,7 @@ erstelleAmtBereich({
   neuKategorieId:null, fixKategorie:'Feuerwehr-Beitritt',
   neuNameId:'fw-name', neuHandyId:'fw-handy', neuBetreffId:null, neuBeschreibungId:'fw-beschreibung',
   absendenBtnId:'fw-absenden', formStatusId:'fw-status',
+  ckIdId:'fw-ck-id', ckHandyId:'fw-ck-handy', ckBtnId:'fw-ck-btn', ckStatusId:'fw-ck-status', ckErgebnisId:'fw-ck-ergebnis',
   codeId:'fw-code', loginBtnId:'fw-login-btn', gateId:'fw-gate', bereichId:'fw-bereich',
   gateStatusId:'fw-gate-status', listeId:'fw-liste', reloadBtnId:'fw-reload', logoutBtnId:'fw-logout'
 });
@@ -2235,6 +2323,7 @@ erstelleAmtBereich({
   neuKategorieId:'ba-kategorie', fixKategorie:null,
   neuNameId:'ba-name', neuHandyId:'ba-handy', neuBetreffId:'ba-betreff', neuBeschreibungId:'ba-beschreibung',
   absendenBtnId:'ba-absenden', formStatusId:'ba-status',
+  ckIdId:'ba-ck-id', ckHandyId:'ba-ck-handy', ckBtnId:'ba-ck-btn', ckStatusId:'ba-ck-status', ckErgebnisId:'ba-ck-ergebnis',
   codeId:'ba-code', loginBtnId:'ba-login-btn', gateId:'ba-gate', bereichId:'ba-bereich',
   gateStatusId:'ba-gate-status', listeId:'ba-liste', reloadBtnId:'ba-reload', logoutBtnId:'ba-logout'
 });
