@@ -1612,6 +1612,16 @@ function nacheinander(aufgabe){
   NETZWERK_WARTESCHLANGE = ergebnis.then(function(){}, function(){});
   return ergebnis;
 }
+// Schickt dieselben Daten stattdessen per GET (alles im Query-String
+// verpackt). Google Apps Script liefert bei GET-Antworten in dieser Server-
+// Konfiguration bisher immer saubere CORS-Header zurück — bei POST kam es
+// wiederholt (auch nach Neustellung, neuem Deployment, anderem Gerät/Netz)
+// zu einer Antwort ganz ohne CORS-Header. Deshalb hier als letzte Rettung.
+function postUeberGet(daten){
+  var url = SCRIPT_URL + '?aktion=' + encodeURIComponent(daten.aktion || '') +
+    '&daten=' + encodeURIComponent(JSON.stringify(daten));
+  return fetch(url).then(function(r){ return r.json(); });
+}
 function post(daten){
   return nacheinander(function(){
     return mitWiederholung(function(){
@@ -1624,6 +1634,8 @@ function post(daten){
           body: JSON.stringify(daten)
         }).then(function(r){ return r.json() });
       });
+    }).catch(function(fehler){
+      return mitTimeout(function(){ return postUeberGet(daten); });
     });
   });
 }
