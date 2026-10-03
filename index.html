@@ -1539,6 +1539,7 @@ function koAntraegeKarteHtml(a){
       '<div><dt>Eingegangen</dt><dd>'+escHtml(a.eingegangen)+'</dd></div>'+
       '<div><dt>Antragsnummer</dt><dd>'+escHtml(a.id)+'</dd></div>'+
     '</dl>'+
+    (a.info?'<div class="beschreibung"><b>Info vom Amt:</b> '+escHtml(a.info)+'</div>':'')+
     '<div class="tools"><button class="act ghost ko-an-loeschen" type="button">L&ouml;schen</button></div>'+
     '<div class="status ko-an-karte-status" role="status" aria-live="polite"></div>'+
   '</div>';
@@ -2273,6 +2274,7 @@ function antragKarteHtml(a){
         ANTRAG_STATUS_LISTE.map(function(s){ return '<option'+(s===a.status?' selected':'')+'>'+s+'</option>'; }).join('')+
       '</select></div>'+
       '<div class="fld wide"><label>Notiz (intern)</label><input class="an-notiz" value="'+escHtml(a.notiz||'')+'"></div>'+
+      '<div class="fld wide"><label>Info f&uuml;r Antragsteller (sichtbar)</label><input class="an-info" value="'+escHtml(a.info||'')+'"></div>'+
     '</div>'+
     '<div class="tools"><button class="act ghost an-speichern" type="button">Speichern</button>'+
       '<button class="act ghost an-loeschen" type="button">L&ouml;schen</button></div>'+
@@ -2329,6 +2331,7 @@ function erstelleAmtBereich(cfg){
             '<div><dt>Status</dt><dd><strong>'+escHtml(res.status)+'</strong></dd></div>'+
             '<div><dt>Eingegangen</dt><dd>'+escHtml(res.eingegangen)+'</dd></div>'+
           '</dl>'+
+          (res.info?'<div class="beschreibung"><b>Info vom Amt:</b> '+escHtml(res.info)+'</div>':'')+
         '</div>';
     }).catch(function(){ setStatus(cfg.ckStatusId,'Fehler bei der Abfrage.', 'err'); });
   });
@@ -2346,7 +2349,8 @@ function erstelleAmtBereich(cfg){
           aktion:'antrag_status', code:cfg.code,
           id: karte.getAttribute('data-id'),
           status: karte.querySelector('.an-status').value,
-          notiz: karte.querySelector('.an-notiz').value.trim()
+          notiz: karte.querySelector('.an-notiz').value.trim(),
+          info: karte.querySelector('.an-info').value.trim()
         }).then(function(res){
           if(res.ok){ txt.textContent = 'Gespeichert.'; txt.className = 'status an-status-txt ok'; }
           else { txt.textContent = 'Fehler beim Speichern.'; txt.className = 'status an-status-txt err'; }
