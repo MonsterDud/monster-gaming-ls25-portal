@@ -2300,16 +2300,18 @@ function zeStatusAktualisieren(eingestempelt){
 }
 function zeGeraeteLaden(){
   if(ZE_GERAETE_GELADEN || scriptFehlt()) return;
-  get('?aktion=cornerstone_status').then(function(res){
-    if(!res.ok || !res.betriebId) return;
-    return get('?aktion=firmenpreise_alle&betriebId='+encodeURIComponent(res.betriebId));
-  }).then(function(res){
+  // Nutzt dieselbe Preisliste wie der Reiter „Preisliste“ (allgemeine Leistungen/Geräte).
+  get('?aktion=preise_alle').then(function(res){
     if(!res || !res.ok) return;
     ZE_GERAETE_GELADEN = true;
+    var namen = [];
+    (res.daten || []).forEach(function(p){
+      if(p.name && namen.indexOf(p.name) === -1) namen.push(p.name);
+    });
     var sel = document.getElementById('ze-geraet');
     var aktuell = sel.value;
     sel.innerHTML = '<option value="">– Gerät wählen –</option>' +
-      (res.daten || []).map(function(p){ return '<option value="'+escHtml(p.bezeichnung)+'">'+escHtml(p.bezeichnung)+'</option>'; }).join('') +
+      namen.map(function(n){ return '<option value="'+escHtml(n)+'">'+escHtml(n)+'</option>'; }).join('') +
       '<option value="__frei__">Andere / manuell eingeben …</option>';
     sel.value = aktuell;
   }).catch(function(){});
