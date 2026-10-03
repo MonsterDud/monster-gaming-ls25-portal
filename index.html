@@ -821,8 +821,9 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
 
   <!-- Meine Anfragen -->
   <section class="panel" id="c-meine">
-    <p class="lead">Trag deinen Charakternamen genauso ein, wie du ihn bei der Anfrage
-    angegeben hast, und du siehst den aktuellen Stand.</p>
+    <p class="lead">Wenn du mit deinem Spielerkonto angemeldet bist, siehst du deine Anfragen
+    hier automatisch &mdash; der Stand aktualisiert sich von selbst. Sonst trag deinen
+    Charakternamen genauso ein, wie du ihn bei der Anfrage angegeben hast.</p>
     <div class="suchleiste">
       <div class="fld"><label for="cm-name">Charaktername</label>
         <input id="cm-name" placeholder="Vor- und Nachname"></div>
@@ -1562,6 +1563,7 @@ function pfPollingStarten(){
     if(!AKTIVER_SPIELER.name) return;
     pfPosteingangLaden();
     koAntraegeLaden();
+    cmLaden(AKTIVER_SPIELER.name, true);
   }, PF_POLL_MS);
 }
 function koAntraegeKarteHtml(a){
@@ -1633,6 +1635,8 @@ function kontoAnzeigen(){
   cornerstoneStatusLaden();
   pfPosteingangLaden();
   koAntraegeLaden();
+  document.getElementById('cm-name').value = AKTIVER_SPIELER.name;
+  cmLaden(AKTIVER_SPIELER.name, false);
   csTabsAktualisieren();
   pfPollingStarten();
 }
@@ -2760,7 +2764,8 @@ function karteHtml(a, adminModus){
       '<div><dt>Wunschtermin</dt><dd>'+(a.termin||'&mdash;')+'</dd></div>'+
       '<div><dt>Best&auml;tigter Termin</dt><dd>'+(a.bestaetigterTermin||'&mdash;')+'</dd></div>'+
     '</dl>'+
-    '<div class="beschreibung">'+(a.beschreibung||'')+'</div>';
+    '<div class="beschreibung">'+(a.beschreibung||'')+'</div>'+
+    (!adminModus && a.info ? '<div class="beschreibung"><b>Info von der Bauleitung:</b> '+escHtml(a.info)+'</div>' : '');
   if(adminModus){
     html += '<div class="adminfelder">'+
       '<div class="fld"><label>Status</label><select class="f-status"></select></div>'+
@@ -2768,6 +2773,8 @@ function karteHtml(a, adminModus){
       '<input class="f-termin" placeholder="TT.MM.JJJJ, Uhrzeit" value="'+(a.bestaetigterTermin||'')+'"></div>'+
       '<div class="fld wide"><label>Interne Notiz</label>'+
       '<input class="f-notiz" value="'+(a.notiz||'')+'"></div>'+
+      '<div class="fld wide"><label>Info f&uuml;r Kunde (sichtbar)</label>'+
+      '<input class="f-info" value="'+escHtml(a.info||'')+'"></div>'+
       '</div>'+
       '<div class="tools"><button class="act speichern" type="button">Speichern</button>'+
       '<button class="act ghost kalk" type="button">Kalkulation / Angebot</button>'+
@@ -2777,16 +2784,14 @@ function karteHtml(a, adminModus){
   html += '</div>';
   return html;
 }
-document.getElementById('cm-btn').addEventListener('click', function(){
-  var name = document.getElementById('cm-name').value.trim();
+function cmLaden(name, leise){
   var listeEl = document.getElementById('cm-liste');
-  if(!name){ setStatus('cm-status','Bitte Charakternamen eingeben.', 'err'); return; }
-  if(scriptFehlt()){ setStatus('cm-status','Es ist noch keine Web-App-Adresse hinterlegt.', 'err'); return; }
+  if(!name){ if(!leise) setStatus('cm-status','Bitte Charakternamen eingeben.', 'err'); return; }
+  if(scriptFehlt()){ if(!leise) setStatus('cm-status','Es ist noch keine Web-App-Adresse hinterlegt.', 'err'); return; }
   localSet('mg_name', name);
-  setStatus('cm-status','Wird geladen \u2026');
-  listeEl.innerHTML = '';
+  if(!leise){ setStatus('cm-status','Wird geladen \u2026'); listeEl.innerHTML = ''; }
   get('?aktion=meine&name=' + encodeURIComponent(name)).then(function(res){
-    if(!res.ok){ setStatus('cm-status','Fehler beim Laden.', 'err'); return; }
+    if(!res.ok){ if(!leise) setStatus('cm-status','Fehler beim Laden.', 'err'); return; }
     if(!res.daten.length){
       setStatus('cm-status','', '');
       listeEl.innerHTML = '<p class="leer">Keine Anfragen zu diesem Namen gefunden.</p>';
@@ -2794,7 +2799,10 @@ document.getElementById('cm-btn').addEventListener('click', function(){
     }
     setStatus('cm-status','', '');
     listeEl.innerHTML = res.daten.map(function(a){ return karteHtml(a, false); }).join('');
-  }).catch(function(){ setStatus('cm-status','Fehler beim Laden.', 'err'); });
+  }).catch(function(){ if(!leise) setStatus('cm-status','Fehler beim Laden.', 'err'); });
+}
+document.getElementById('cm-btn').addEventListener('click', function(){
+  cmLaden(document.getElementById('cm-name').value.trim(), false);
 });
 
 /* ================= CORNERSTONE: BAULEITUNG ================= */
@@ -2873,7 +2881,8 @@ function renderAdminListe(liste){
         aktion: 'update', nummer: nummer,
         status: sel.value,
         bestaetigterTermin: karte.querySelector('.f-termin').value.trim(),
-        notiz: karte.querySelector('.f-notiz').value.trim()
+        notiz: karte.querySelector('.f-notiz').value.trim(),
+        info: karte.querySelector('.f-info').value.trim()
       }, caAuthFelder());
       btn.disabled = true;
       statusFeld.textContent = 'Speichert \u2026';
