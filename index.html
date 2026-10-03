@@ -3482,7 +3482,10 @@ document.getElementById('ad-rw-speichern').addEventListener('click', function(){
 var WEBHOOK_EREIGNISSE = [
   { schluessel:'regelwerk_geaendert', label:'Regelwerk geändert' },
   { schluessel:'cornerstone_anfrage', label:'Neue Cornerstone-Anfrage' },
-  { schluessel:'amt_antrag',          label:'Neue Anträge bei Ämtern' },
+  { schluessel:'amt_antrag_rathaus',        label:'Neue Anträge beim Rathaus' },
+  { schluessel:'amt_antrag_polizei',        label:'Neue Anträge bei der Polizei' },
+  { schluessel:'amt_antrag_feuerwehr',      label:'Neue Anträge/Meldungen bei der Feuerwehr' },
+  { schluessel:'amt_antrag_bauordnungsamt', label:'Neue Anträge beim Bauordnungsamt' },
   { schluessel:'neue_registrierung',  label:'Neue Spieler-Registrierung' }
 ];
 function adWebhooksRendern(daten){
