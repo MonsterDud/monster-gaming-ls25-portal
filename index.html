@@ -1569,15 +1569,37 @@ function setStatus(id, txt, cls){
   var s = document.getElementById(id);
   s.textContent = txt;
   s.className = 'status'+(cls?' '+cls:'');
+  if(txt) s.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function mitTimeout(promiseFn, ms){
+  return new Promise(function(resolve, reject){
+    var fertig = false;
+    var timer = setTimeout(function(){
+      if(fertig) return;
+      fertig = true;
+      reject(new Error('Zeitüberschreitung — der Server hat zu lange nicht geantwortet.'));
+    }, ms || 20000);
+    promiseFn().then(function(res){
+      if(fertig) return;
+      fertig = true; clearTimeout(timer); resolve(res);
+    }, function(fehler){
+      if(fertig) return;
+      fertig = true; clearTimeout(timer); reject(fehler);
+    });
+  });
 }
 function post(daten){
-  return fetch(SCRIPT_URL, {
-    method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify(daten)
-  }).then(function(r){ return r.json() });
+  return mitTimeout(function(){
+    return fetch(SCRIPT_URL, {
+      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(daten)
+    }).then(function(r){ return r.json() });
+  });
 }
 function get(query){
-  return fetch(SCRIPT_URL + query).then(function(r){ return r.json() });
+  return mitTimeout(function(){
+    return fetch(SCRIPT_URL + query).then(function(r){ return r.json() });
+  });
 }
 function scriptFehlt(){ return SCRIPT_URL.indexOf('http') !== 0; }
 // Enter-Taste in einem einzeiligen Eingabefeld löst denselben Klick aus wie der dazugehörige Knopf
