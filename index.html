@@ -3819,6 +3819,9 @@ document.getElementById('pf-send').addEventListener('click', function(){
         res.fehler === 'nicht_an_sich_selbst' ? 'Du kannst dir selbst keine Nachricht schicken.' :
         res.fehler === 'datei_zu_gross' ? 'Der Anhang ist zu groß (Server-Limit).' :
         res.fehler === 'datei_ungueltig' ? 'Der Anhang konnte nicht gelesen werden.' :
+        res.fehler === 'anhang_fehlgeschlagen' ? 'Der Anhang konnte nicht gespeichert werden (Google Drive). Bitte den Serveradmin informieren — das Skript braucht eventuell noch die Drive-Berechtigung.' :
+        res.fehler === 'nicht_angemeldet' ? 'Du bist nicht (mehr) angemeldet. Bitte neu einloggen.' :
+        res.fehler === 'fehlende_angaben' ? 'Bitte Empfänger und Nachricht ausfüllen.' :
         'Fehler beim Senden.', 'err');
     }
   }).catch(function(){ sendBtn.disabled = false; setStatus('pf-send-status','Fehler beim Senden.', 'err'); });
