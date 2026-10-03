@@ -1589,22 +1589,35 @@ function mitTimeout(promiseFn, ms){
     });
   });
 }
+// Google Apps Script liefert die Antwort einer Webapp-Anfrage in seltenen
+// Fällen ganz ohne CORS-Header aus, obwohl das Skript serverseitig fertig
+// durchläuft (sichtbar im Ausführungsprotokoll als "Abgeschlossen") — der
+// Browser blockiert die Antwort dann mit einem CORS-Fehler. Das legt sich
+// meist von selbst innerhalb weniger Sekunden, daher hier ein einziger
+// automatischer Wiederholungsversuch, bevor wirklich ein Fehler gezeigt wird.
+function mitWiederholung(promiseFn){
+  return promiseFn().catch(function(fehler){
+    return new Promise(function(resolve){ setTimeout(resolve, 1500); }).then(promiseFn);
+  });
+}
 function post(daten){
-  return mitTimeout(function(){
-    // Bewusst kein expliziter Content-Type-Header: der Browser setzt dafür
-    // automatisch "text/plain;charset=UTF-8", was als "einfache" Anfrage
-    // gilt (kein Preflight). Ein selbst gesetzter Header hat bei Apps-Script-
-    // Webapps in seltenen Fällen dazu geführt, dass die Antwort ohne
-    // CORS-Header zurückkam, obwohl das Skript serverseitig fertig lief.
-    return fetch(SCRIPT_URL, {
-      method:'POST',
-      body: JSON.stringify(daten)
-    }).then(function(r){ return r.json() });
+  return mitWiederholung(function(){
+    return mitTimeout(function(){
+      // Bewusst kein expliziter Content-Type-Header: der Browser setzt dafür
+      // automatisch "text/plain;charset=UTF-8", was als "einfache" Anfrage
+      // gilt (kein Preflight).
+      return fetch(SCRIPT_URL, {
+        method:'POST',
+        body: JSON.stringify(daten)
+      }).then(function(r){ return r.json() });
+    });
   });
 }
 function get(query){
-  return mitTimeout(function(){
-    return fetch(SCRIPT_URL + query).then(function(r){ return r.json() });
+  return mitWiederholung(function(){
+    return mitTimeout(function(){
+      return fetch(SCRIPT_URL + query).then(function(r){ return r.json() });
+    });
   });
 }
 function scriptFehlt(){ return SCRIPT_URL.indexOf('http') !== 0; }
