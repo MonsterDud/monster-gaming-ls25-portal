@@ -2525,6 +2525,16 @@ var ZE_MEINE_DATEN = [];
 var ZE_TEAM_DATEN = [];
 var ZE_OFFENE_DATEN = [];
 var ZE_GERAETE_GELADEN = false;
+// Minuten (aus dem Sheet) in eine lesbare Stundenanzeige umwandeln, z. B.
+// 120 -> "2 Std." und 90 -> "1,5 Std.".
+function zeDauerText(min){
+  if(min === '' || min === null || typeof min === 'undefined') return '';
+  var m = Number(min);
+  if(isNaN(m)) return String(min);
+  var std = Math.round((m / 60) * 10) / 10;
+  var text = (std % 1 === 0) ? String(std) : String(std).replace('.', ',');
+  return text + ' Std.';
+}
 function zeKarteHtml(a, mitSpieler, darfLoeschen){
   return '<div class="karte" data-id="'+a.id+'">'+
     '<div class="karte-kopf"><span class="anr">'+(mitSpieler?escHtml(a.spieler)+' &mdash; ':'')+escHtml(a.geraet || 'Kein Gerät angegeben')+'</span>'+
@@ -2532,7 +2542,7 @@ function zeKarteHtml(a, mitSpieler, darfLoeschen){
     '<dl>'+
       '<div><dt>Start</dt><dd>'+escHtml(a.start)+'</dd></div>'+
       '<div><dt>Ende</dt><dd>'+(a.ende?escHtml(a.ende):'&ndash;')+'</dd></div>'+
-      '<div><dt>Dauer</dt><dd>'+(a.dauerMin!==''?escHtml(String(a.dauerMin))+' Min.':'&ndash;')+'</dd></div>'+
+      '<div><dt>Dauer</dt><dd>'+(a.dauerMin!==''?escHtml(zeDauerText(a.dauerMin)):'&ndash;')+'</dd></div>'+
     '</dl>'+
     (a.von?'<div class="beschreibung"><b>Eingestempelt von:</b> '+escHtml(a.von)+'</div>':'')+
     (darfLoeschen?'<div class="tools"><button class="act ghost ze-loeschen" type="button">L&ouml;schen</button></div>':'')+
@@ -2626,7 +2636,7 @@ function zeAusstempeln(zielName, btn){
   post({ aktion:'zeit_ausstempeln', name:AKTIVER_SPIELER.name, passwort:AKTIVER_SPIELER.passwort, zielName: zielName }).then(function(res){
     if(res.ok){
       var eigen = zielName.trim().toLowerCase() === AKTIVER_SPIELER.name.trim().toLowerCase();
-      setStatus(eigen ? 'ze-status' : 'ze-helfer-status', (eigen?'Ausgestempelt':escHtml(zielName)+' ausgestempelt')+' — Dauer: '+res.dauerMin+' Min.', 'ok');
+      setStatus(eigen ? 'ze-status' : 'ze-helfer-status', (eigen?'Ausgestempelt':escHtml(zielName)+' ausgestempelt')+' — Dauer: '+zeDauerText(res.dauerMin), 'ok');
       zeOffeneLaden(); zeMeineLaden();
       if(document.getElementById('ze-team-box').style.display !== 'none') zeTeamLaden();
     } else {
@@ -2720,7 +2730,7 @@ document.getElementById('zn-btn').addEventListener('click', function(){
   post({ aktion:'zeit_nachtrag', name:AKTIVER_SPIELER.name, passwort:AKTIVER_SPIELER.passwort,
          zielName:name, geraet:geraet, datum:datum, start:start, ende:ende }).then(function(res){
     if(res.ok){
-      setStatus('zn-status','Eingetragen — Dauer: '+res.dauerMin+' Min.', 'ok');
+      setStatus('zn-status','Eingetragen — Dauer: '+zeDauerText(res.dauerMin), 'ok');
       document.getElementById('zn-start').value = ''; document.getElementById('zn-ende').value = '';
       zeMeineLaden();
       if(document.getElementById('ze-team-box').style.display !== 'none') zeTeamLaden();
