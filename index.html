@@ -2728,7 +2728,9 @@ document.getElementById('zn-btn').addEventListener('click', function(){
       var txt = res.fehler === 'ungueltiges_datum' ? 'Ungültiges Datum (Format TT.MM.JJJJ).' :
                 res.fehler === 'ungueltige_zeit' ? 'Ungültige Uhrzeit (Format HH:MM).' :
                 res.fehler === 'ungueltige_dauer' ? 'Die Dauer ergibt keinen Sinn — bitte Zeiten prüfen (max. 24 Std.).' :
-                'Fehler beim Eintragen.';
+                res.fehler === 'kein_zugriff' ? 'Kein Zugriff — bist du als Cornerstone-Mitarbeiter angemeldet?' :
+                res.fehler === 'unbekannte_aktion' ? 'Der Server kennt diese Funktion noch nicht — bitte die aktuelle Backend-Datei einfügen und neu bereitstellen.' :
+                'Fehler beim Eintragen' + (res.fehler ? ' (' + res.fehler + ')' : '') + '.';
       setStatus('zn-status', txt, 'err');
     }
   }).catch(function(){ setStatus('zn-status','Fehler beim Eintragen.', 'err'); });
