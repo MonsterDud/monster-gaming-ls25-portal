@@ -1051,6 +1051,22 @@ button.del:focus-visible{outline:2px solid var(--green);outline-offset:1px}
       <div class="status" id="ze-helfer-status" role="status" aria-live="polite"></div>
     </div>
 
+    <div class="karte" style="margin-bottom:18px">
+      <h2 class="sec" style="margin-top:0">Stunden nachtr&auml;glich eintragen</h2>
+      <p class="lead" style="margin:0 0 10px">Falls jemand vergessen hat, sich ein- oder auszustempeln &mdash; für dich
+      oder einen Helfer, mit Datum und Uhrzeit.</p>
+      <div class="meta">
+        <div class="fld"><label for="zn-name">Name</label><input id="zn-name" placeholder="Ingame-Name"></div>
+        <div class="fld wide"><label for="zn-geraet">Ger&auml;t / Fahrzeug (optional)</label>
+          <select id="zn-geraet"><option value="">&ndash; Ger&auml;t w&auml;hlen &ndash;</option></select></div>
+        <div class="fld"><label for="zn-datum">Datum</label><input id="zn-datum" placeholder="TT.MM.JJJJ"></div>
+        <div class="fld"><label for="zn-start">Start</label><input id="zn-start" placeholder="HH:MM"></div>
+        <div class="fld"><label for="zn-ende">Ende</label><input id="zn-ende" placeholder="HH:MM"></div>
+        <button class="act" id="zn-btn" type="button">Eintragen</button>
+      </div>
+      <div class="status" id="zn-status" role="status" aria-live="polite"></div>
+    </div>
+
     <h2 class="sec">Aktuell eingestempelt</h2>
     <div class="tools" style="margin-bottom:10px">
       <button class="act ghost" id="ze-offene-reload" type="button">Aktualisieren</button>
@@ -2477,7 +2493,16 @@ function csTabsSetzen(zeigen, istMitarbeiter){
       if(sec) sec.classList.remove('aktiv');
     });
   }
-  if(istMitarbeiter){ zeMeineLaden(); zeOffeneLaden(); zeTeamSichtbarkeitPruefen(); }
+  if(istMitarbeiter){
+    zeMeineLaden(); zeOffeneLaden(); zeTeamSichtbarkeitPruefen();
+    var znName = document.getElementById('zn-name');
+    if(znName && !znName.value) znName.value = AKTIVER_SPIELER.name;
+    var znDatum = document.getElementById('zn-datum');
+    if(znDatum && !znDatum.value){
+      var heute = new Date();
+      znDatum.value = ('0'+heute.getDate()).slice(-2)+'.'+('0'+(heute.getMonth()+1)).slice(-2)+'.'+heute.getFullYear();
+    }
+  }
   else {
     ['c-zeit','c-grubenplan'].forEach(function(panel){
       var btn = document.querySelector('[data-panel="'+panel+'"]');
@@ -2534,7 +2559,7 @@ function zeGeraeteLaden(){
     });
     ZE_GERAETE_OPTIONEN_HTML = '<option value="">– Gerät wählen –</option>' +
       namen.map(function(n){ return '<option value="'+escHtml(n)+'">'+escHtml(n)+'</option>'; }).join('');
-    ['ze-geraet','ze-helfer-geraet'].forEach(function(id){
+    ['ze-geraet','ze-helfer-geraet','zn-geraet'].forEach(function(id){
       var sel = document.getElementById(id);
       if(!sel) return;
       var aktuell = sel.value;
@@ -2683,6 +2708,30 @@ document.getElementById('ze-helfer-ein-btn').addEventListener('click', function(
       if(document.getElementById('ze-team-box').style.display !== 'none') zeTeamLaden();
     } else setStatus('ze-helfer-status', res.fehler === 'bereits_eingestempelt' ? escHtml(name)+' ist bereits eingestempelt.' : 'Fehler beim Einstempeln.', 'err');
   }).catch(function(){ setStatus('ze-helfer-status','Fehler beim Einstempeln.', 'err'); });
+});
+document.getElementById('zn-btn').addEventListener('click', function(){
+  var name = document.getElementById('zn-name').value.trim() || AKTIVER_SPIELER.name;
+  var geraet = zeGeraetWertVon(document.getElementById('zn-geraet'));
+  var datum = document.getElementById('zn-datum').value.trim();
+  var start = document.getElementById('zn-start').value.trim();
+  var ende = document.getElementById('zn-ende').value.trim();
+  if(!datum || !start || !ende){ setStatus('zn-status','Bitte Datum, Start und Ende ausfüllen.', 'err'); return; }
+  setStatus('zn-status','Wird gespeichert …');
+  post({ aktion:'zeit_nachtrag', name:AKTIVER_SPIELER.name, passwort:AKTIVER_SPIELER.passwort,
+         zielName:name, geraet:geraet, datum:datum, start:start, ende:ende }).then(function(res){
+    if(res.ok){
+      setStatus('zn-status','Eingetragen — Dauer: '+res.dauerMin+' Min.', 'ok');
+      document.getElementById('zn-start').value = ''; document.getElementById('zn-ende').value = '';
+      zeMeineLaden();
+      if(document.getElementById('ze-team-box').style.display !== 'none') zeTeamLaden();
+    } else {
+      var txt = res.fehler === 'ungueltiges_datum' ? 'Ungültiges Datum (Format TT.MM.JJJJ).' :
+                res.fehler === 'ungueltige_zeit' ? 'Ungültige Uhrzeit (Format HH:MM).' :
+                res.fehler === 'ungueltige_dauer' ? 'Die Dauer ergibt keinen Sinn — bitte Zeiten prüfen (max. 24 Std.).' :
+                'Fehler beim Eintragen.';
+      setStatus('zn-status', txt, 'err');
+    }
+  }).catch(function(){ setStatus('zn-status','Fehler beim Eintragen.', 'err'); });
 });
 document.getElementById('ze-offene-reload').addEventListener('click', zeOffeneLaden);
 document.getElementById('ze-team-reload').addEventListener('click', zeTeamLaden);
