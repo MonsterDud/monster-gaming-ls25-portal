@@ -4342,6 +4342,10 @@ function adRenderListe(liste){
   var ziel = (location.hash || '').replace('#', '').trim().toLowerCase();
   if(ziel === 'regelwerk'){
     document.querySelector('[data-hpanel="h-regelwerk"]').click();
+  } else if(ziel === 'preisliste' || ziel === 'preise'){
+    document.querySelector('[data-hpanel="h-firmen"]').click();
+    var preisTab = document.querySelector('[data-panel="c-preis"]');
+    if(preisTab) preisTab.click();
   }
 })();
 
